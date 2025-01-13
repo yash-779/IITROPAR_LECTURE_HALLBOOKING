@@ -1,3 +1,9 @@
+# Changelog
+
+## [2.0.0] 2025-13-01
+
+### Upgraded to React 19 ⚡️
+
 ## [1.1.0] 2024-07-26
 
 🚀 New features:
