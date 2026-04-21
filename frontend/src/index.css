@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html, body {
+        font-family: 'DM Sans', sans-serif !important;
+        font-feature-settings: 'kern' !important;
+        -webkit-font-smoothing: antialiased;
+        letter-spacing: -0.5px;
+        margin: 0;
+        padding: 0;
+        background-color: #0b1437; 
+        
+        overscroll-behavior: none;
+
+        /* Add these two lines to hide the global scrollbar! */
+        scrollbar-width: none; /* Hides it in Firefox */
+        -ms-overflow-style: none; /* Hides it in Edge/IE */
+    }
+
+}
+input.defaultCheckbox::before {
+    content: url(../src/assets/svg/checked.svg); 
+   
+    opacity: 0; 
+    height: 16px; 
+    width: 16px;
+    position: absolute; 
+    left: 50%;
+    transform: translate(-50%, 0px);
+} 
+
+input:checked.defaultCheckbox::before { 
+    opacity: 1;
+}
+
+/* 3. Premium Invisible Scrollbar Utility */
+@layer utilities {
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+    }
+}
+
+    /* Add this right below the html, body block to hide it in Chrome/Safari */
+    html::-webkit-scrollbar, body::-webkit-scrollbar {
+        display: none;
+    }
