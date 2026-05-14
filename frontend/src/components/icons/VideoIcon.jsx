@@ -14,5 +14,4 @@ const VideoIcon = () => {
     </svg>
   );
 };
-
 export default VideoIcon;

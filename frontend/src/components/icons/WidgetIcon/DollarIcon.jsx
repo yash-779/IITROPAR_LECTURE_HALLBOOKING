@@ -14,5 +14,4 @@ const DollarIcon = () => {
     </svg>
   );
 };
-
 export default DollarIcon;

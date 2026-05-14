@@ -12,5 +12,4 @@ const PopoverHorizon = (props) => {
     </Popover>
   );
 };
-
 export default PopoverHorizon;

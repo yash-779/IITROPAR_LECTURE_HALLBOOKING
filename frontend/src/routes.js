@@ -1,29 +1,28 @@
 import React from "react";
-import { MdLock, MdGavel, MdOutlineVerifiedUser, MdEvent, MdAddCircle, MdCalendarMonth, MdSchedule, MdCheckCircle, MdDashboard, MdOutlineLibraryAddCheck } from "react-icons/md";
-
-// --- IMPORTS ---
-import StudentSchedule from "pages/student/bookings/StudentSchedule";
-import MySchedule from "pages/faculty/MySchedule";
-import ExecutiveDashboard from "pages/admin/ExecutiveDashboard";
-import ExecutiveApprovals from "pages/admin/ExecutiveApprovals";
-import Approvals from "pages/faculty/Approvals";
-import JRApprovals from "pages/admin/JrApprovals";
-import JRCampusSchedule from "pages/admin/JrCampusSchedule";
-import JRDashboard from "pages/admin/JrDashboard";
-import FacultyRoomCalendar from "pages/faculty/FacultyRoomCalendar";
-import StudentBookings from "pages/student/bookings/StudentBookings";
-import BookRoom from "pages/student/bookings/BookRoom";
-import RoomCalendar from "pages/student/bookings/RoomCalendar";
-import SignIn from "pages/SignIn";
-// EXPLICIT STUDENT SCHEDULE IMPORT
-
+import {
+  MdLock, MdGavel, MdOutlineVerifiedUser, MdEvent, MdAddCircle,
+  MdCalendarMonth, MdSchedule, MdCheckCircle, MdDashboard,
+  MdOutlineLibraryAddCheck, MdOutlineEventNote
+} from "react-icons/md";
+import StudentSchedule        from "pages/student/bookings/StudentSchedule";
+import MySchedule             from "pages/faculty/MySchedule";
+import ExecutiveDashboard     from "pages/admin/ExecutiveDashboard";
+import ExecutiveApprovals     from "pages/admin/ExecutiveApprovals";
+import Approvals              from "pages/faculty/Approvals";
+import JRApprovals            from "pages/admin/JrApprovals";
+import JRCampusSchedule       from "pages/admin/JrCampusSchedule";
+import JRDashboard            from "pages/admin/JrDashboard";
+import FacultyRoomCalendar    from "pages/faculty/FacultyRoomCalendar";
+import StudentBookings        from "pages/student/bookings/StudentBookings";
+import BookRoom               from "pages/student/bookings/BookRoom";
+import RoomCalendar           from "pages/student/bookings/RoomCalendar";
+import SignIn                 from "pages/SignIn";
+import FacultyRequests        from "pages/faculty/FacultyRequests";
+import StudentFacultyRequests from "pages/student/bookings/StudentFacultyRequests";
 const routes = [
-  // ==========================================
-  // STUDENT ROUTES
-  // ==========================================
   {
     name: "My Bookings",
-    layout: "/admin", 
+    layout: "/admin",
     path: "my-bookings",
     icon: <MdEvent className="h-5 w-5" />,
     component: <StudentBookings />,
@@ -39,20 +38,23 @@ const routes = [
     name: "Room Calendar",
     layout: "/admin",
     path: "room-calendar",
-    icon: <MdCalendarMonth className="h-5 w-5" />, 
+    icon: <MdCalendarMonth className="h-5 w-5" />,
     component: <RoomCalendar />,
   },
- {
+  {
     name: "Student Schedule",
     layout: "/admin",
-    path: "student-schedule", 
+    path: "student-schedule",
     icon: <MdSchedule className="h-5 w-5" />,
-    component: <StudentSchedule />, 
-},
-
-  // ==========================================
-  // JR ASSISTANT / ADMIN ROUTES (Hidden for Students in prod)
-  // ==========================================
+    component: <StudentSchedule />,
+  },
+  {
+    name: "Faculty Requests",
+    layout: "/admin",
+    path: "faculty-requests",
+    icon: <MdOutlineEventNote className="h-5 w-5" />,
+    component: <StudentFacultyRequests />,
+  },
   {
     name: "My Schedule",
     layout: "/admin",
@@ -68,9 +70,16 @@ const routes = [
     component: <Approvals />,
   },
   {
+    name: "My Requests",
+    layout: "/admin",
+    path: "my-booking-requests",
+    icon: <MdOutlineEventNote className="h-5 w-5" />,
+    component: <FacultyRequests />,
+  },
+  {
     name: "Faculty Calendar",
     layout: "/admin",
-    path: "faculty-calendar", 
+    path: "faculty-calendar",
     icon: <MdCalendarMonth className="h-5 w-5" />,
     component: <FacultyRoomCalendar />,
   },
@@ -80,7 +89,7 @@ const routes = [
     path: "campus-schedule",
     icon: <MdCalendarMonth className="h-5 w-5" />,
     component: <JRCampusSchedule />,
-  }, 
+  },
   {
     name: "Dashboard",
     layout: "/admin",
@@ -89,7 +98,7 @@ const routes = [
     component: <JRDashboard />,
   },
   {
-    name: "Triage Queue", 
+    name: "Triage Queue",
     layout: "/admin",
     path: "jr-approvals",
     icon: <MdOutlineLibraryAddCheck className="h-5 w-5" />,
@@ -129,7 +138,6 @@ const routes = [
     path: "portal",
     icon: <MdLock className="h-5 w-5" />,
     component: <SignIn />,
-  }
+  },
 ];
-
 export default routes;

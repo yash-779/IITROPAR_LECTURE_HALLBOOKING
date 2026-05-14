@@ -14,5 +14,4 @@ const ChartIcon = () => {
     </svg>
   );
 };
-
 export default ChartIcon;

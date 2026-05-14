@@ -14,5 +14,4 @@ const ProfileIcon = () => {
     </svg>
   );
 };
-
 export default ProfileIcon;

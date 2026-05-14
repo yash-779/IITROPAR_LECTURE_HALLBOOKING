@@ -14,5 +14,4 @@ const MarketIcon = () => {
     </svg>
   );
 };
-
 export default MarketIcon;

@@ -23,5 +23,4 @@ const ThemsIcon = () => {
     </span>
   );
 };
-
 export default ThemsIcon;

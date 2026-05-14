@@ -3,60 +3,44 @@ import { fetchBookingsByFaculty } from "../../services/api";
 import courseData from "../../variables/courseData";
 import {
   MdCalendarMonth, MdAccessTime, MdLocationOn, MdClose,
-  MdCheckCircle, MdSchedule, MdInfoOutline, MdEvent, MdRefresh
+  MdCheckCircle, MdSchedule, MdInfoOutline, MdEvent, MdRefresh, MdQrCode2
 } from "react-icons/md";
-
-// ── Helpers ──────────────────────────────────────────────────────
+import QRCode from "react-qr-code";
 const TODAY = new Date().toISOString().split("T")[0];
-
 const fmtTime = (t) => {
   if (!t) return "—";
   const [h, m] = t.split(":");
   const hr = parseInt(h, 10);
   return `${hr % 12 || 12}:${m} ${hr >= 12 ? "PM" : "AM"}`;
 };
-
 const fmtDate = (d) =>
   d ? new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
-
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-// ── Color decisions ───────────────────────────────────────────────
-// event.kind: "course" | "booking-approved" | "booking-pending"
 const eventCfg = (kind) => {
   if (kind === "course")            return { border: "border-l-brand-500",   bg: "bg-brand-500/8",   badge: "bg-brand-500/15 text-brand-500",   label: "Class",    dot: "bg-brand-500" };
   if (kind === "booking-approved")  return { border: "border-l-green-500",   bg: "bg-green-500/8",   badge: "bg-green-500/15 text-green-500",   label: "Approved", dot: "bg-green-500" };
   return                                   { border: "border-l-amber-500",   bg: "bg-amber-500/8",   badge: "bg-amber-500/15 text-amber-400 animate-pulse", label: "Pending AR", dot: "bg-amber-500" };
 };
-
 export default function MySchedule() {
   const [selectedDate, setSelectedDate] = useState(TODAY);
   const [events,       setEvents]       = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [selected,     setSelected]     = useState(null);
-
-  // Read logged-in user
   const [user] = useState(() => {
     try { return JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}"); }
     catch { return {}; }
   });
-
   const facultyId = user._id || user.id;
   const facultyName = user.name || "";
-  
-  // Get all courses taught by this faculty from courseData (by matching instructor name)
   const enrolledCourses = user.enrolledCourses || user.taughtCourses || [];
   const taughtCourses = enrolledCourses.length > 0 
     ? enrolledCourses 
     : courseData
         .filter((c) => c.instructor && c.instructor.toLowerCase() === facultyName.toLowerCase())
         .map((c) => c.code);
-
   const buildEvents = useCallback(async () => {
     setLoading(true);
     const result = [];
-
-    // ① Course-based schedule events
     const dayName = DAY_NAMES[new Date(selectedDate + "T00:00:00").getDay()];
     taughtCourses.forEach((code) => {
       const entries = courseData.filter((c) => c.code === code);
@@ -76,46 +60,56 @@ export default function MySchedule() {
         });
       });
     });
-
-    // ② Booking-based events (approved bookings where I'm faculty in-charge)
     if (facultyId) {
       try {
         const bookings = await fetchBookingsByFaculty(facultyId);
+        const todayStr = new Date().toISOString().split('T')[0];
         bookings.forEach((b) => {
-          const slot = b.allocatedSlot || (b.priorities && b.priorities[0]);
-          if (!slot?.date || slot.date !== selectedDate) return;
-          const isPendingAR = b.tracker?.ar === "pending" && b.tracker?.jrAssistant === "approved";
-          result.push({
-            id: b._id,
-            kind: isPendingAR ? "booking-pending" : "booking-approved",
-            title: b.activityType,
-            subtitle: `${b.clubName} · ${b.requester?.name || "Student"}`,
-            venue: slot.venueName || "TBD",
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            booking: b,
-          });
+          if (selectedDate < todayStr && b.status !== "Approved") return;
+          if (b.allocatedSlot && b.allocatedSlot.date) {
+              if (b.allocatedSlot.date !== selectedDate) return;
+              const isPendingAR = b.tracker?.ar !== "approved";
+              result.push({
+                id: b._id,
+                kind: isPendingAR ? "booking-pending" : "booking-approved",
+                title: b.activityType,
+                subtitle: `${b.clubName} · ${b.requester?.name || "Student"}`,
+                venue: b.allocatedSlot.venueName || "TBD",
+                startTime: b.allocatedSlot.startTime,
+                endTime: b.allocatedSlot.endTime,
+                booking: b,
+              });
+          } else if (b.priorities) {
+              b.priorities.forEach((p) => {
+                  if (p.date !== selectedDate) return;
+                  const isPendingAR = b.tracker?.ar !== "approved";
+                  result.push({
+                    id: `${b._id}-${p.venueId}`,
+                    kind: isPendingAR ? "booking-pending" : "booking-approved",
+                    title: b.activityType,
+                    subtitle: `${b.clubName} · ${b.requester?.name || "Student"}`,
+                    venue: p.venueName || "TBD",
+                    startTime: p.startTime,
+                    endTime: p.endTime,
+                    booking: b,
+                  });
+              });
+          }
         });
       } catch (e) {
         console.error("MySchedule booking fetch error:", e);
       }
     }
-
-    // Sort by start time
     result.sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
     setEvents(result);
     setLoading(false);
   }, [selectedDate, facultyId, taughtCourses.join(",")]);
-
   useEffect(() => { buildEvents(); }, [buildEvents]);
-
   const nextEvent = events.find((e) => e.kind === "booking-approved");
   const pendingCount = events.filter((e) => e.kind === "booking-pending").length;
-
   return (
     <div className="mt-5 w-full min-h-[80vh] rounded-[20px] dark:bg-gradient-to-br dark:from-navy-900 dark:to-navy-800 p-2 lg:p-4">
-
-      {/* DATE + CONTROLS */}
+      {}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 px-1">
         <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
           {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
@@ -133,13 +127,10 @@ export default function MySchedule() {
           </button>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-        {/* ── MAIN TIMELINE (left 2 cols) ── */}
+        {}
         <div className="lg:col-span-2 space-y-4">
-
-          {/* UPCOMING BANNER */}
+          {}
           {nextEvent && selectedDate === TODAY && (
             <div className="mb-2 rounded-2xl bg-gradient-to-r from-brand-500 to-indigo-600 p-6 shadow-lg shadow-brand-500/20 text-white">
               <p className="text-[10px] uppercase tracking-widest font-black text-white/70 mb-2 flex items-center gap-1.5">
@@ -153,8 +144,7 @@ export default function MySchedule() {
               </p>
             </div>
           )}
-
-          {/* PENDING AR BANNER */}
+          {}
           {pendingCount > 0 && (
             <div className="rounded-xl border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-4 flex items-center gap-3">
               <div className="h-3 w-3 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
@@ -163,8 +153,7 @@ export default function MySchedule() {
               </p>
             </div>
           )}
-
-          {/* Legend */}
+          {}
           <div className="flex flex-wrap gap-3 px-1">
             {[
               { kind: "course", label: "Course Class" },
@@ -179,7 +168,6 @@ export default function MySchedule() {
               );
             })}
           </div>
-
           {loading ? (
             <div className="py-16 flex flex-col items-center gap-3 text-gray-400">
               <div className="h-8 w-8 rounded-full border-4 border-brand-500 border-t-transparent animate-spin" />
@@ -193,17 +181,15 @@ export default function MySchedule() {
             </div>
           ) : (
             <div className="relative pl-8">
-              {/* Timeline spine */}
+              {}
               <div className="absolute left-3 top-2 bottom-2 w-px bg-gradient-to-b from-brand-500/40 to-transparent dark:from-brand-500/20" />
-
               {events.map((ev) => {
                 const cfg = eventCfg(ev.kind);
                 return (
                   <div key={ev.id} onClick={() => setSelected(ev)}
                     className={`relative mb-5 cursor-pointer rounded-[16px] border border-gray-100 dark:border-navy-700 border-l-4 ${cfg.border} ${cfg.bg} p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md`}>
-                    {/* Timeline dot */}
+                    {}
                     <div className={`absolute -left-[25px] top-5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-navy-800 ${cfg.dot}`} />
-
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
@@ -218,7 +204,6 @@ export default function MySchedule() {
                         <p className="text-xs text-gray-400">– {fmtTime(ev.endTime)}</p>
                       </div>
                     </div>
-
                     <div className="flex items-center gap-1.5 mt-3 text-xs text-gray-500 dark:text-gray-400">
                       <MdLocationOn size={12} className="text-brand-500 flex-shrink-0" />
                       <span className="font-semibold">{ev.venue}</span>
@@ -229,10 +214,9 @@ export default function MySchedule() {
             </div>
           )}
         </div>
-
-        {/* ── RIGHT SIDEBAR ── */}
+        {}
         <div className="space-y-5">
-          {/* Day summary */}
+          {}
           <div className="rounded-2xl bg-white dark:bg-navy-800 border border-gray-100 dark:border-navy-700 p-5 shadow-sm">
             <h3 className="text-sm font-black text-brand-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <MdSchedule size={16} /> Day Summary
@@ -251,8 +235,7 @@ export default function MySchedule() {
               ))}
             </div>
           </div>
-
-          {/* Info */}
+          {}
           <div className="rounded-2xl bg-gray-50 dark:bg-navy-900/50 border border-gray-100 dark:border-navy-700 p-5">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <MdInfoOutline size={13} /> How Events Appear
@@ -265,8 +248,7 @@ export default function MySchedule() {
           </div>
         </div>
       </div>
-
-      {/* ── EVENT DETAIL DRAWER ── */}
+      {}
       <div className={`fixed inset-0 z-[100] bg-navy-900/60 backdrop-blur-sm transition-opacity duration-300 ${selected ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setSelected(null)} />
       <div className={`fixed right-0 top-0 z-[101] h-full w-full max-w-md bg-white shadow-2xl dark:bg-navy-800 transition-all duration-300 ease-out ${selected ? "translate-x-0" : "translate-x-full"}`}>
@@ -302,9 +284,28 @@ export default function MySchedule() {
               ))}
               {selected.kind !== "course" && selected.booking && (
                 <div className="rounded-xl bg-gray-50 dark:bg-navy-900/60 border border-gray-100 dark:border-navy-700 p-4">
-                  <p className="text-[10px] font-bold uppercase text-gray-400 mb-2">Booking Status</p>
-                  <p className="font-bold text-navy-700 dark:text-white text-sm">{selected.booking.status}</p>
-                  {selected.booking.purpose && <p className="text-xs text-gray-500 mt-1">{selected.booking.purpose}</p>}
+                  <p className="text-[10px] font-bold uppercase text-gray-400 mb-2">E-Ticket Status</p>
+                  {selected.booking.status === "Approved" ? (
+                    <div className="flex flex-col items-center py-2">
+                      <div className="p-3 border border-gray-200 rounded-xl bg-white shadow-sm mb-3">
+                        {selected.booking.qrCode ? (
+                           <QRCode value={selected.booking.qrCode} size={96} />
+                        ) : (
+                           <MdQrCode2 className="h-24 w-24 text-navy-900" />
+                        )}
+                      </div>
+                      <p className="text-sm font-bold text-green-600 dark:text-green-400">Approved & Valid</p>
+                      {selected.booking.qrId && <p className="text-[10px] font-medium text-gray-500 mt-1 uppercase tracking-widest">{selected.booking.qrId.split("-")[0] + "-" + selected.booking.qrId.split("-")[1].substring(0,6)}</p>}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center py-4">
+                      <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-2">
+                        <MdSchedule className="h-6 w-6 text-amber-500 animate-pulse" />
+                      </div>
+                      <p className="text-sm font-bold text-amber-600 dark:text-amber-500">Approval Pending</p>
+                      <p className="text-[10px] font-medium text-gray-500 mt-1 uppercase tracking-widest">E-Ticket not generated</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

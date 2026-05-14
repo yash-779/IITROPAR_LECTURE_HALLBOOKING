@@ -5,8 +5,6 @@ import {
   MdCalendarMonth, MdAccessTime, MdClose, MdFiberManualRecord,
   MdLocationOn, MdPerson, MdRefresh, MdEvent
 } from "react-icons/md";
-
-// ── Venue master data ─────────────────────────────────────────────
 const rawVenues = [
   { id: "m1",   title: "M1",       capacity: 50,  type: "Classroom",  block: "Radhakrishnan Block" },
   { id: "m2",   title: "M2",       capacity: 50,  type: "Classroom",  block: "Radhakrishnan Block" },
@@ -38,15 +36,11 @@ const rawVenues = [
   { id: "s106", title: "S-106",    capacity: 72,  type: "Classroom",  block: "Super Academic Block" },
   { id: "s107", title: "S-107",    capacity: 72,  type: "Classroom",  block: "Super Academic Block" },
 ];
-
 const gradients = [
   "from-brand-400 to-brand-600", "from-indigo-400 to-indigo-600",
   "from-purple-400 to-purple-600", "from-blue-400 to-blue-600"
 ];
-
 const uniqueBlocks = [...new Set(rawVenues.map(v => v.block))];
-
-// Normalize venue names for matching courseData venues to rawVenues
 const normalizeVenue = (str) => str.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 const checkVenueMatch = (courseVenue, uiTitle, uiId) => {
   if (!courseVenue) return false;
@@ -57,65 +51,63 @@ const checkVenueMatch = (courseVenue, uiTitle, uiId) => {
   if (cv === 'AUDI' && ut === 'AUDITORIUM') return true;
   return false;
 };
-
 const fmtTime = (t) => {
   if (!t) return "—";
   const [h, m] = t.split(":");
   const hr = parseInt(h, 10);
   return `${hr % 12 || 12}:${m} ${hr >= 12 ? "PM" : "AM"}`;
 };
-
 const fmtDate = (d) =>
   d ? new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
-
 const statusCfg = (s) => {
   if (s === "Course")           return { dot: "bg-brand-500",  badge: "bg-brand-500/15 text-brand-500",  label: "Class" };
   if (s === "Approved")        return { dot: "bg-green-500",  badge: "bg-green-500/15 text-green-500",  label: "Approved" };
   if (s === "Action Required") return { dot: "bg-orange-500", badge: "bg-orange-500/15 text-orange-400", label: "Action Req." };
   return                              { dot: "bg-amber-400",  badge: "bg-amber-500/15 text-amber-400 animate-pulse", label: "Pending" };
 };
-
 const TODAY = new Date().toISOString().split("T")[0];
 const NOW_HOUR = new Date().getHours() + new Date().getMinutes() / 60;
-
 export default function FacultyRoomCalendar() {
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [filterDate,    setFilterDate]    = useState(TODAY);
   const [filterBlock,   setFilterBlock]   = useState("all");
-  const [venueEvents,   setVenueEvents]   = useState({}); // { venueId: [booking, ...] }
+  const [venueEvents,   setVenueEvents]   = useState({}); 
   const [loading,       setLoading]       = useState(false);
-
-  // Get faculty info
   const [user] = useState(() => {
     try { return JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}"); }
     catch { return {}; }
   });
   const facultyName = user.name || "";
-
   const loadEvents = useCallback(async () => {
     if (!filterDate) return;
     setLoading(true);
     try {
       const bookings = await fetchBookingsByDate(filterDate);
       const grouped = {};
-      
-      // Add bookings grouped by venueId
+      const todayStr = new Date().toISOString().split('T')[0];
       bookings.forEach(b => {
-        const slot = b.allocatedSlot?.date === filterDate ? b.allocatedSlot : null;
-        const priority = !slot && b.priorities?.find(p => p.date === filterDate);
-        const target = slot || priority;
-        if (!target) return;
-        const vid = target.venueId;
-        if (!grouped[vid]) grouped[vid] = [];
-        grouped[vid].push({ ...b, displaySlot: target, kind: "booking" });
+        if (filterDate < todayStr && b.status !== "Approved") return;
+        if (b.allocatedSlot && b.allocatedSlot.date) {
+            if (b.allocatedSlot.date === filterDate) {
+                const vid = b.allocatedSlot.venueId;
+                if (!grouped[vid]) grouped[vid] = [];
+                const finalStatus = b.tracker?.ar === 'approved' ? "Approved" : "Pending";
+                grouped[vid].push({ ...b, displaySlot: b.allocatedSlot, kind: "booking", status: finalStatus });
+            }
+        } else {
+            const priority = b.priorities?.find(p => p.date === filterDate);
+            if (priority) {
+                const vid = priority.venueId;
+                if (!grouped[vid]) grouped[vid] = [];
+                const finalStatus = b.tracker?.ar === 'approved' ? "Approved" : "Pending";
+                grouped[vid].push({ ...b, displaySlot: priority, kind: "booking", status: finalStatus });
+            }
+        }
       });
-      
-      // Add ALL courses for this date (not just faculty's courses)
       const dayName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date(filterDate + "T00:00:00").getDay()];
       courseData
         .forEach(course => {
           if (!course || !course.venue) return;
-          // Find which rawVenue matches this course's venue using normalizer
           const venueMatch = rawVenues.find(v => checkVenueMatch(course.venue, v.title, v.id));
           if (!venueMatch) return;
           const vid = venueMatch.id;
@@ -138,7 +130,6 @@ export default function FacultyRoomCalendar() {
             }
           });
         });
-      
       setVenueEvents(grouped);
     } catch (e) {
       console.error("FacultyRoomCalendar load error:", e);
@@ -146,9 +137,7 @@ export default function FacultyRoomCalendar() {
       setLoading(false);
     }
   }, [filterDate]);
-
   useEffect(() => { loadEvents(); }, [loadEvents]);
-
   const filteredVenues = rawVenues
     .filter(v => filterBlock === "all" || v.block === filterBlock)
     .map((v, i) => {
@@ -162,11 +151,9 @@ export default function FacultyRoomCalendar() {
       });
       return { ...v, gradient: gradients[i % gradients.length], events, isLiveBusy };
     });
-
   return (
     <div className="mt-5 w-full min-h-[85vh] rounded-[20px] dark:bg-gradient-to-br dark:from-navy-900 dark:to-navy-800 p-2 lg:p-4">
-
-      {/* ── FILTER ROW ── */}
+      {}
       <div className="mb-6 flex flex-wrap items-center gap-3 px-1">
         <div className="relative flex items-center">
           <MdCalendarMonth className="absolute left-3 text-brand-500" size={15} />
@@ -185,15 +172,14 @@ export default function FacultyRoomCalendar() {
           {loading ? "Loading…" : `${Object.values(venueEvents).flat().length} event(s) on ${fmtDate(filterDate)}`}
         </span>
       </div>
-
-      {/* ── VENUE GRID ── */}
+      {}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredVenues.map(venue => (
           <div key={venue.id}
             onClick={() => setSelectedVenue(venue)}
             className="group relative cursor-pointer rounded-[18px] overflow-hidden bg-white dark:bg-navy-800 border border-gray-100 dark:border-navy-700 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
           >
-            {/* Gradient header */}
+            {}
             <div className={`bg-gradient-to-r ${venue.gradient} p-5 text-white relative`}>
               <div className="flex justify-between items-start">
                 <div>
@@ -211,8 +197,7 @@ export default function FacultyRoomCalendar() {
                 <span>{venue.type}</span>
               </div>
             </div>
-
-            {/* Event count + preview */}
+            {}
             <div className="p-4">
               {venue.events.length === 0 ? (
                 <p className="text-xs text-gray-400 font-semibold text-center py-3">Free on {fmtDate(filterDate)}</p>
@@ -236,7 +221,6 @@ export default function FacultyRoomCalendar() {
                   )}
                 </div>
               )}
-
               <div className="mt-3 pt-2.5 border-t border-dashed border-gray-100 dark:border-navy-700 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold text-brand-500 text-center">
                 View Timeline →
               </div>
@@ -244,16 +228,13 @@ export default function FacultyRoomCalendar() {
           </div>
         ))}
       </div>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          VENUE DETAIL DRAWER
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {}
       <div className={`fixed inset-0 z-[100] bg-navy-900/60 backdrop-blur-sm transition-opacity duration-300 ${selectedVenue ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setSelectedVenue(null)} />
       <div className={`fixed right-0 top-0 z-[101] h-full w-full max-w-[480px] bg-white shadow-2xl dark:bg-navy-800 transition-all duration-300 ease-out ${selectedVenue ? "translate-x-0" : "translate-x-full"}`}>
         {selectedVenue && (
           <>
-            {/* Drawer header */}
+            {}
             <div className={`bg-gradient-to-r ${selectedVenue.gradient} p-7 text-white`}>
               <div className="flex justify-between items-start">
                 <div>
@@ -273,8 +254,7 @@ export default function FacultyRoomCalendar() {
                 </span>
               </div>
             </div>
-
-            {/* Events list */}
+            {}
             <div className="p-6 h-[calc(100vh-220px)] overflow-y-auto space-y-4">
               {selectedVenue.events.length === 0 ? (
                 <div className="py-12 flex flex-col items-center">
@@ -327,7 +307,6 @@ export default function FacultyRoomCalendar() {
           </>
         )}
       </div>
-
     </div>
   );
 }

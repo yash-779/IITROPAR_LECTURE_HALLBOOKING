@@ -1,9 +1,7 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { MdCheckCircle, MdArrowForward, MdArrowBack, MdClose } from "react-icons/md";
-import { submitBookingRequest } from "../../../services/api";
-
-// --- VENUE DATA ---
+import { submitBookingRequest, respondToFacultyRequest } from "../../../services/api";
 const venuesData = [
   { id: "m1", title: "M1", capacity: 50, type: "Classroom", block: "Radhakrishnan Block" },
   { id: "m2", title: "M2", capacity: 50, type: "Classroom", block: "Radhakrishnan Block" },
@@ -35,19 +33,16 @@ const venuesData = [
   { id: "s106", title: "S-106", capacity: 72, type: "Classroom", block: "Super Academic Block" },
   { id: "s107", title: "S-107", capacity: 72, type: "Classroom", block: "Super Academic Block" },
 ];
-
 const blockNames = [...new Set(venuesData.map(v => v.block))];
-
 const clubOptions = [
   "Board of Hostel Affairs", "Board of Sports Affairs", "Board of Science and Technology",
   "Board of Cultural Activities", "Board of Literary Activities", "Board of Academic Affairs",
   "Research Secretary", "NCC", "NSS", "Other"
 ];
-
 export default function BookRoom() {
   const navigate = useNavigate();
-  
-  // --- 1. LIVE DATA EXTRACTION ---
+  const location = useLocation();
+  const prefill = location.state?.prefill || null;
   const storedUser = localStorage.getItem("user") || sessionStorage.getItem("user") || "{}";
   let liveUser = {};
   try {
@@ -56,26 +51,19 @@ export default function BookRoom() {
     liveUser = {};
   }
   const enrolledCourses = liveUser.enrolledCourses || [];
-
-  // --- EXTRACT DEPARTMENT DYNAMICALLY ---
-  // e.g., "2023csb1135@iitrpr.ac.in" -> extracts "CSB"
   const extractDept = (email) => {
     if (!email) return "N/A";
-    const match = email.match(/\d{4}([a-z]{3})/i);
+    const match = email.match(/(csb|eeb|cyb|ceb|meb|mcb|mmb|phb)/i);
     return match ? match[1].toUpperCase() : "N/A";
   };
   const liveDepartment = extractDept(liveUser.email);
-
-  // States
   const [currentStep, setCurrentStep] = useState(1);
   const [activeBlock, setActiveBlock] = useState(blockNames[0]);
   const [numPriorities, setNumPriorities] = useState(1);
   const [activePriorityTab, setActivePriorityTab] = useState(0);
-  
   const [logistics, setLogistics] = useState([
     { venues: [], date: "", startTime: "", endTime: "" }
   ]);
-
   const [formData, setFormData] = useState({
     clubNameSelection: "",
     clubNameOther: "",
@@ -85,22 +73,38 @@ export default function BookRoom() {
     audienceCount: "",
     purpose: "",
   });
-
   const [selectedDepartments, setSelectedDepartments] = useState([]);
   const departmentOptions = ["CSB", "EEB", "CYB", "CEB", "MEB", "MCB", "MMB", "PHB"];
-
   const [facultyEmails, setFacultyEmails] = useState([]);
   const [emailInput, setEmailInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Checks if the activity requires selecting a course
+  useEffect(() => {
+    if (!prefill) return;
+    const clubIsKnown = clubOptions.includes(prefill.clubName);
+    setFormData(prev => ({
+      ...prev,
+      clubNameSelection: clubIsKnown ? prefill.clubName : 'Other',
+      clubNameOther: clubIsKnown ? '' : (prefill.clubName || ''),
+      activityType: prefill.activityType || '',
+      activityOther: prefill.activityOther || '',
+      audienceCount: String(prefill.audienceCount || 2),
+      purpose: prefill.purpose || '',
+    }));
+    if (prefill.venueId) {
+      const venueObj = venuesData.find(v => v.id === prefill.venueId);
+      if (venueObj) {
+        setActiveBlock(venueObj.block);
+        setLogistics([{ venues: [venueObj.title], date: prefill.date || '', startTime: '', endTime: '' }]);
+      } else {
+        setLogistics([{ venues: [], date: prefill.date || '', startTime: '', endTime: '' }]);
+      }
+    }
+    if (prefill.facultyEmail) setFacultyEmails([prefill.facultyEmail]);
+  }, []);
   const requiresCourse = ["Lecture", "Examination", "Quiz"].includes(formData.activityType);
   const today = new Date().toISOString().split('T')[0];
-
   const handleNext = () => setCurrentStep((prev) => Math.min(prev + 1, 3));
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
-
-  // --- LOGISTICS HANDLERS ---
   const handlePriorityCountChange = (e) => {
     const count = parseInt(e.target.value);
     setNumPriorities(count);
@@ -113,13 +117,11 @@ export default function BookRoom() {
     });
     if (activePriorityTab >= count) setActivePriorityTab(count - 1);
   };
-
   const updateLogisticsField = (field, value) => {
     const updated = [...logistics];
     updated[activePriorityTab][field] = value;
     setLogistics(updated);
   };
-
   const handleTimeBlur = (field, value) => {
     if (!value) return;
     const minTime = "08:00";
@@ -129,7 +131,6 @@ export default function BookRoom() {
     if (value > maxTime) finalTime = maxTime;
     updateLogisticsField(field, finalTime);
   };
-
   const toggleVenueSelection = (title) => {
     const currentVenues = logistics[activePriorityTab].venues;
     let newVenues;
@@ -140,8 +141,6 @@ export default function BookRoom() {
     }
     updateLogisticsField("venues", newVenues);
   };
-
-  // --- EMAIL HANDLERS ---
   const handleEmailKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -152,17 +151,13 @@ export default function BookRoom() {
       setEmailInput("");
     }
   };
-
   const removeEmail = (emailToRemove) => {
     setFacultyEmails(facultyEmails.filter(e => e !== emailToRemove));
   };
-
-  // --- CAPACITY CALCULATION ---
   const getCapacityWarnings = () => {
     if (!formData.audienceCount) return [];
     const audience = parseInt(formData.audienceCount);
     const warnings = [];
-
     logistics.forEach((log, index) => {
       if (log.venues.length > 0) {
         const totalCapacity = log.venues.reduce((sum, vTitle) => {
@@ -176,7 +171,6 @@ export default function BookRoom() {
     });
     return warnings;
   };
-
   const VenueCard = ({ title, capacity, type }) => {
     const isSelected = logistics[activePriorityTab]?.venues.includes(title);
     return (
@@ -201,31 +195,20 @@ export default function BookRoom() {
       </div>
     );
   };
-
-  // --- 2. DYNAMIC SUBMISSION HANDLER ---
  const handleSubmit = async () => {
-    // 🚨 STRICT DB CHECK: If your browser doesn't have your DB ID, it blocks the booking
     if (!liveUser || !liveUser._id) {
       return alert("Security Error: No Database ID found. Please log out and log back in.");
     }
-    
-    // Validate course selection for lecture/exam/quiz
     if (requiresCourse && !formData.targetCourse) {
       return alert("Please select a target course for this activity type.");
     }
-    
-    // Validate department selection for non-course activities
     if (!requiresCourse && selectedDepartments.length === 0) {
       return alert("Please select at least one target department for this activity.");
     }
-    
     if (facultyEmails.length === 0) return alert("Please enter at least one faculty email.");
-
     setIsSubmitting(true);
-    // ... rest of your payload logic, ensuring requester is liveUser._id
     try {
       const finalClubName = formData.clubNameSelection === "Other" ? formData.clubNameOther : formData.clubNameSelection;
-
       let formattedPriorities = [];
       logistics.forEach((log) => {
         log.venues.forEach((venueTitle) => {
@@ -241,8 +224,6 @@ export default function BookRoom() {
           }
         });
       });
-
-      // Construct payload exact to backend requirements
       const payload = {
         requester: liveUser._id || liveUser.id,
         clubName: finalClubName,
@@ -251,17 +232,19 @@ export default function BookRoom() {
         audienceCount: Number(formData.audienceCount),
         purpose: formData.purpose,
         priorities: formattedPriorities,
-        facultyEmail: facultyEmails[0], // NOTE: In Phase 2, backend must find Faculty by this email
+        facultyEmail: facultyEmails[0], 
         targetCourse: requiresCourse ? formData.targetCourse : null,
         targetDepartments: !requiresCourse ? selectedDepartments : []
       };
-
       console.log("📤 Submitting booking payload:", payload);
-      await submitBookingRequest(payload);
-      alert("Request Successfully Submitted to the Faculty!");
-      
+      const newBooking = await submitBookingRequest(payload);
+      if (prefill && prefill.facultyRequestId && newBooking && newBooking._id) {
+        try {
+          await respondToFacultyRequest(prefill.facultyRequestId, "booked", { resultingBookingId: newBooking._id });
+        } catch(e) { console.warn("Faculty request mark error:", e); }
+      }
+      alert("Request Successfully Submitted!");
       navigate("/admin/my-bookings"); 
-
     } catch (error) {
       console.error("Booking submission failed:", error);
       alert(error.response?.data?.message || "Scheduling conflict detected. Please verify your selected times and venues.");
@@ -269,23 +252,19 @@ export default function BookRoom() {
       setIsSubmitting(false);
     }
   };
-
   return (
     <div className="mt-3 flex w-full flex-col items-center justify-center">
       <div className="w-full max-w-4xl rounded-[20px] bg-white p-8 shadow-3xl shadow-shadow-500 dark:!bg-navy-800 dark:shadow-none">
-        
-        {/* PROGRESS HEADER */}
+        {}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-navy-700 dark:text-white mb-2">Book a Venue</h2>
           <p className="text-gray-500">Complete the steps below to submit your request to the Faculty In-charge.</p>
-          
           <div className="mt-8 flex items-center justify-between relative px-2">
             <div className="absolute left-0 top-1/2 -z-10 h-1 w-full -translate-y-1/2 bg-gray-200 dark:bg-navy-700"></div>
             <div 
               className="absolute left-0 top-1/2 -z-10 h-1 -translate-y-1/2 bg-brand-500 transition-all duration-500"
               style={{ width: currentStep === 1 ? '0%' : currentStep === 2 ? '50%' : '100%' }}
             ></div>
-
             {[1, 2, 3].map((step) => (
               <div key={step} className={`flex h-10 w-10 items-center justify-center rounded-full border-4 font-bold transition-colors ${
                 currentStep >= step 
@@ -302,8 +281,7 @@ export default function BookRoom() {
             <span>Endorsement</span>
           </div>
         </div>
-
-        {/* STEP 1: LOGISTICS */}
+        {}
         {currentStep === 1 && (
           <div className="animate-fade-in">
             <div className="flex justify-between items-end mb-4">
@@ -321,7 +299,6 @@ export default function BookRoom() {
                 </select>
               </div>
             </div>
-
             {numPriorities > 1 && (
               <div className="flex gap-2 mb-6">
                 {[...Array(numPriorities)].map((_, i) => (
@@ -339,7 +316,6 @@ export default function BookRoom() {
                 ))}
               </div>
             )}
-            
             <p className="text-sm font-bold text-gray-600 dark:text-gray-300 mb-3">Filter by Block</p>
             <div className="flex flex-wrap gap-2 mb-6">
               {blockNames.map(block => (
@@ -356,15 +332,12 @@ export default function BookRoom() {
                 </button>
               ))}
             </div>
-
             <p className="text-sm text-gray-500 mb-4 italic">You can select multiple rooms for Priority {activePriorityTab + 1}.</p>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8 max-h-[300px] overflow-y-auto p-1">
               {venuesData.filter(v => v.block === activeBlock).map((v) => (
                 <VenueCard key={v.id} title={v.title} capacity={v.capacity} type={v.type} />
               ))}
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Date</label>
@@ -401,12 +374,10 @@ export default function BookRoom() {
             </div>
           </div>
         )}
-
-        {/* STEP 2: EVENT DETAILS */}
+        {}
         {currentStep === 2 && (
           <div className="animate-fade-in">
             <h3 className="text-xl font-bold text-navy-700 dark:text-white mb-4">2. What are you planning?</h3>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Club / Organizing Body</label>
@@ -444,7 +415,6 @@ export default function BookRoom() {
                 ))}
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Type of Activity</label>
@@ -472,8 +442,7 @@ export default function BookRoom() {
                   />
                 )}
               </div>
-
-              {/* DYNAMIC TARGET COURSE DROPDOWN */}
+              {}
               {requiresCourse && (
                 <div className="animate-fade-in p-4 rounded-xl border-2 border-blue-200 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-500/30">
                   <label className="text-sm font-bold text-blue-700 dark:text-blue-400 flex items-center gap-2">
@@ -496,7 +465,6 @@ export default function BookRoom() {
                 </div>
               )}
             </div>
-
             <div>
               <label className="text-sm font-bold text-gray-600 dark:text-gray-300">Purpose of Booking & Resources Needed</label>
               <textarea 
@@ -509,14 +477,12 @@ export default function BookRoom() {
             </div>
           </div>
         )}
-
-        {/* STEP 3: ENDORSEMENT */}
+        {}
         {currentStep === 3 && (
           <div className="animate-fade-in">
             <h3 className="text-xl font-bold text-navy-700 dark:text-white mb-4">3. Faculty Endorsement & Visibility</h3>
             <p className="text-sm text-gray-500 mb-6">Your request must be approved by a Faculty In-charge before it reaches AR Academics.</p>
-            
-            {/* VISIBILITY INDICATOR */}
+            {}
             <div className={`rounded-2xl p-4 mb-6 border-l-4 ${requiresCourse ? 'border-l-blue-500 bg-blue-50 dark:bg-blue-500/10' : 'border-l-purple-500 bg-purple-50 dark:bg-purple-500/10'}`}>
               <p className={`text-sm font-bold ${requiresCourse ? 'text-blue-700 dark:text-blue-400' : 'text-purple-700 dark:text-purple-400'}`}>
                 {requiresCourse ? (
@@ -526,8 +492,7 @@ export default function BookRoom() {
                 )}
               </p>
             </div>
-            
-            {/* LIVE USER DETAILS */}
+            {}
             <div className="rounded-2xl bg-gray-50 p-6 border border-gray-200 dark:bg-navy-900 dark:border-navy-700 mb-6">
               <h4 className="text-sm font-bold text-gray-600 dark:text-gray-300 uppercase mb-4">Your Details (Auto-filled)</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-navy-700 dark:text-white">
@@ -536,8 +501,7 @@ export default function BookRoom() {
                 <div><span className="text-gray-400 block mb-1">Department</span><span className="font-semibold">{liveDepartment}</span></div>
               </div>
             </div>
-
-            {/* DYNAMIC TARGET DEPARTMENTS */}
+            {}
             {!requiresCourse && (
               <div className="mb-6 animate-fade-in p-5 rounded-2xl bg-purple-50 border-2 border-purple-200 dark:bg-purple-500/10 dark:border-purple-500/30">
                 <label className="text-sm font-bold text-purple-700 dark:text-purple-400 block mb-2 flex items-center gap-2">
@@ -564,10 +528,8 @@ export default function BookRoom() {
                 )}
               </div>
             )}
-
             <div>
               <label className="text-sm font-bold text-gray-600 dark:text-gray-300 mb-2 block">Search Faculty In-charge (Add multiple)</label>
-              
               <div className="flex flex-wrap gap-2 mb-2">
                 {facultyEmails.map((email, idx) => (
                   <span key={idx} className="flex items-center gap-2 bg-brand-50 text-brand-600 dark:bg-brand-400/10 dark:text-brand-400 px-3 py-1 rounded-full text-sm font-semibold border border-brand-200 dark:border-brand-400">
@@ -576,7 +538,6 @@ export default function BookRoom() {
                   </span>
                 ))}
               </div>
-
               <input 
                 type="text" 
                 placeholder="Type email and press Enter or comma..." 
@@ -588,8 +549,7 @@ export default function BookRoom() {
             </div>
           </div>
         )}
-
-        {/* NAVIGATION BUTTONS */}
+        {}
         <div className="mt-10 flex justify-between border-t border-gray-200 pt-6 dark:border-navy-700">
           <button 
             onClick={handleBack} 
@@ -602,7 +562,6 @@ export default function BookRoom() {
           >
             <MdArrowBack /> Back
           </button>
-          
           {currentStep < 3 ? (
             <button 
               onClick={handleNext}
@@ -620,7 +579,6 @@ export default function BookRoom() {
             </button>
           )}
         </div>
-
       </div>
     </div>
   );

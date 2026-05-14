@@ -5,8 +5,6 @@ import {
   MdCalendarMonth, MdAccessTime, MdLocationOn, MdPerson, MdClose, 
   MdFilterList, MdWarning, MdCheckCircle, MdInfoOutline, MdGpsFixed, MdRefresh
 } from "react-icons/md";
-
-// Venue master list (same as FacultyRoomCalendar)
 const ALL_VENUES = [
   { id: "m1", name: "M1",    block: "Radhakrishnan Block" },
   { id: "m2", name: "M2",    block: "Radhakrishnan Block" },
@@ -38,14 +36,8 @@ const ALL_VENUES = [
   { id: "s106", name: "S-106", block: "Super Academic Block" },
   { id: "s107", name: "S-107", block: "Super Academic Block" },
 ];
-
-// Convert HH:MM to decimal hours (e.g. "14:30" -> 14.5)
 const timeToHour = (t) => { if(!t) return 9; const [h,m] = t.split(":").map(Number); return h + m/60; };
-
-// Extract unique blocks from venues
 const ALL_BLOCKS = [...new Set(ALL_VENUES.map(v => v.block))].sort();
-
-// Normalize venue names for matching courseData venues to ALL_VENUES
 const normalizeVenue = (str) => str.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 const checkVenueMatch = (courseVenue, uiName, uiId) => {
   if (!courseVenue) return false;
@@ -56,8 +48,6 @@ const checkVenueMatch = (courseVenue, uiName, uiId) => {
   if (cv === 'AUDI' && un === 'AUDITORIUM') return true;
   return false;
 };
-
-
 export default function JRCampusSchedule() {
   const [selectedDate,      setSelectedDate]      = useState(new Date().toISOString().split("T")[0]);
   const [selectedBlock,     setSelectedBlock]     = useState("All Blocks");
@@ -67,7 +57,6 @@ export default function JRCampusSchedule() {
   const [rawBookings,       setRawBookings]       = useState([]);
   const [loading,           setLoading]           = useState(false);
   const scrollRef = useRef(null);
-
   const loadBookings = useCallback(async () => {
     setLoading(true);
     try {
@@ -79,26 +68,24 @@ export default function JRCampusSchedule() {
       setLoading(false);
     }
   }, [selectedDate]);
-
   useEffect(() => { loadBookings(); }, [loadBookings]);
-
-  // Build room rows from DB bookings grouped by venue
   const roomRows = ALL_VENUES
     .map(v => {
     const events = [];
-    
-    // Add bookings for this venue on the selected date
+    const todayStr = new Date().toISOString().split('T')[0];
     const bookingEvents = rawBookings
       .filter(b => {
-        const allocatedMatch = b.allocatedSlot?.date === selectedDate && b.allocatedSlot?.venueId === v.id;
-        const priorityMatch = b.priorities?.some(p => p.date === selectedDate && p.venueId === v.id);
-        return allocatedMatch || priorityMatch;
+        if (selectedDate < todayStr && b.status !== "Approved") return false;
+        if (b.allocatedSlot && b.allocatedSlot.date) {
+            return b.allocatedSlot.date === selectedDate && b.allocatedSlot.venueId === v.id;
+        }
+        return b.priorities?.some(p => p.date === selectedDate && p.venueId === v.id);
       })
       .map(b => {
-        const slot = b.allocatedSlot?.date === selectedDate && b.allocatedSlot?.venueId === v.id 
+        const slot = (b.allocatedSlot && b.allocatedSlot.date) 
           ? b.allocatedSlot 
           : b.priorities?.find(p => p.venueId === v.id && p.date === selectedDate);
-        
+        if (!slot) return null;
         return {
           id: b._id,
           title: b.activityType,
@@ -107,7 +94,7 @@ export default function JRCampusSchedule() {
           duration: timeToHour(slot?.endTime) - timeToHour(slot?.startTime),
           startTime: slot?.startTime,
           endTime:   slot?.endTime,
-          status: b.status,
+          status: b.tracker?.ar === 'approved' ? "Approved" : "Pending",
           purpose: b.purpose,
           clubName: b.clubName,
           audienceCount: b.audienceCount,
@@ -116,13 +103,10 @@ export default function JRCampusSchedule() {
         };
       });
     events.push(...bookingEvents);
-    
-    // Add courses for this venue on the selected date
     const dayName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date(selectedDate + "T00:00:00").getDay()];
     courseData
       .forEach(course => {
         if (!course || !course.venue) return;
-        // Use normalizer to match course.venue to ALL_VENUES
         if (!checkVenueMatch(course.venue, v.name, v.id)) return;
         course.schedule?.forEach(slot => {
           if (slot.day === dayName) {
@@ -144,25 +128,17 @@ export default function JRCampusSchedule() {
           }
         });
       });
-    
-    // Sort events by start time
     events.sort((a, b) => a.start - b.start);
-    
     const utilization = events.length === 0 ? "low" : events.length >= 3 ? "critical" : events.length >= 2 ? "high" : "medium";
     return { id: v.id, name: v.name, block: v.block, events, utilization };
   }).filter(r => (selectedBlock === "All Blocks" || r.block === selectedBlock) && (r.events.length > 0 || !showConflictsOnly));
   const filteredRooms = showConflictsOnly ? roomRows.filter(r => r.events.length > 0) : roomRows;
-
-  // Jump to Now (Mocked to scroll to 2 PM / 14:00)
   const jumpToNow = () => {
     if (scrollRef.current) {
-      // Assuming 11 hours total, 14:00 is 5 hours in. Approx 5/11 of width.
       const scrollAmount = (scrollRef.current.scrollWidth * (5 / 11)) - 100; 
       scrollRef.current.scrollTo({ left: scrollAmount, behavior: "smooth" });
     }
   };
-
-  // --- UI HELPERS ---
   const getEventColors = (status) => {
     if (status === "Course") return "bg-brand-500 border-brand-600 shadow-[0_0_10px_rgba(66,88,255,0.3)] hover:bg-brand-400";
     if (status === "Approved") return "bg-green-500 border-green-600 shadow-[0_0_10px_rgba(34,197,94,0.3)] hover:bg-green-400";
@@ -170,15 +146,12 @@ export default function JRCampusSchedule() {
     if (status === "Conflict") return "bg-red-500 border-red-600 shadow-[0_0_15px_rgba(239,68,68,0.6)] hover:bg-red-400 animate-pulse";
     return "bg-brand-500";
   };
-
   const getUtilBadge = (util) => {
     if (util === "critical") return <span title="Critically Overbooked" className="text-red-500 text-xs">🔥🔥🔥</span>;
     if (util === "high") return <span title="High Usage" className="text-orange-500 text-xs">🔥🔥</span>;
     if (util === "medium") return <span title="Moderate Usage" className="text-amber-500 text-xs">🔥</span>;
     return <span title="Mostly Free" className="text-green-500 flex items-center gap-1"><MdCheckCircle size={10}/></span>;
   };
-
-  // Convert time to 12h format for modals
   const formatTime = (start, duration) => {
     const formatHour = (h) => {
       const isHalf = h % 1 !== 0;
@@ -189,13 +162,9 @@ export default function JRCampusSchedule() {
     };
     return `${formatHour(start)} - ${formatHour(start + duration)}`;
   };
-
-  // Filter Logic — filteredRooms already built from DB above
-
   return (
     <div className="mt-5 w-full min-h-[85vh] rounded-[20px] dark:bg-gradient-to-br dark:from-navy-900 dark:to-navy-800 p-2 lg:p-4 flex flex-col">
-      
-      {/* FILTER ROW */}
+      {}
       <div className="mb-5 flex flex-wrap items-center gap-3 px-1">
         <button 
           onClick={jumpToNow}
@@ -232,36 +201,31 @@ export default function JRCampusSchedule() {
           </span>
         </label>
       </div>
-
-      {/* 2. MAIN TIMELINE VIEW */}
+      {}
       <div className="flex-1 rounded-[24px] bg-white/70 backdrop-blur-md shadow-sm border border-gray-100 dark:bg-navy-800/70 dark:border-navy-700 flex overflow-hidden relative">
-        
-        {/* Y-Axis: Room Names (Sticky Left) */}
+        {}
         <div className="w-24 md:w-32 flex-shrink-0 bg-white dark:bg-navy-800 border-r border-gray-100 dark:border-navy-700 z-20 flex flex-col shadow-[4px_0_10px_rgba(0,0,0,0.02)]">
-          {/* Header Spacer */}
+          {}
           <div className="h-12 border-b border-gray-100 dark:border-navy-700 flex items-center justify-center bg-gray-50/50 dark:bg-navy-900/30">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Venue</span>
           </div>
-          
-          {/* Rooms */}
+          {}
           {filteredRooms.map((room) => (
             <div key={room.id} className="h-24 border-b border-gray-100 dark:border-navy-700 flex flex-col justify-center items-center relative group">
               <span className="text-sm font-extrabold text-navy-700 dark:text-white text-center">{room.name}</span>
               <div className="mt-1 flex items-center justify-center gap-1">
                 {getUtilBadge(room.utilization)}
               </div>
-              
-              {/* Utilization Tooltip */}
+              {}
               <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-navy-900 text-white text-xs font-bold rounded shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                 Usage: <span className="uppercase">{room.utilization}</span>
               </div>
             </div>
           ))}
         </div>
-
-        {/* X-Axis: The Timeline Grid (Scrollable) */}
+        {}
         <div ref={scrollRef} className="flex-1 overflow-x-auto relative custom-scrollbar flex flex-col">
-          {/* Time Header (9 AM to 8 PM) */}
+          {}
           <div className="h-12 flex border-b border-gray-100 dark:border-navy-700 bg-gray-50/50 dark:bg-navy-900/30 min-w-[1100px]">
              {[9,10,11,12,1,2,3,4,5,6,7,8].map((hour, i) => (
                <div key={i} className="flex-1 border-l border-gray-200 dark:border-navy-700/50 flex items-center justify-center text-xs font-bold text-gray-400">
@@ -269,25 +233,20 @@ export default function JRCampusSchedule() {
                </div>
              ))}
           </div>
-
-          {/* Grid Body */}
+          {}
           <div className="relative flex-1 min-w-[1100px]">
-             {/* Vertical Grid Lines (Background) */}
+             {}
              <div className="absolute inset-0 flex pointer-events-none">
                {[...Array(12)].map((_, i) => (
                  <div key={i} className="flex-1 border-l border-dashed border-gray-200 dark:border-navy-700/30"></div>
                ))}
              </div>
-
-             {/* Events Rows */}
+             {}
              {filteredRooms.map((room) => (
                 <div key={room.id} className="h-24 border-b border-gray-100 dark:border-navy-700 relative hover:bg-gray-50/30 dark:hover:bg-navy-700/20 transition-colors">
-                  
                   {room.events.map((ev) => {
-                    // Calculate position: 9AM = 0%, 8PM (11 hours later) = 100%
                     const startPercent = ((ev.start - 9) / 11) * 100;
                     const widthPercent = (ev.duration / 11) * 100;
-                    
                     return (
                       <div 
                         key={ev.id}
@@ -297,8 +256,7 @@ export default function JRCampusSchedule() {
                       >
                         <h4 className="text-xs md:text-sm font-bold truncate tracking-wide">{ev.title}</h4>
                         <p className="text-[10px] font-medium opacity-90 truncate mt-0.5">{ev.organizer}</p>
-
-                        {/* High-Class Tooltip (Appears on Hover above the block) */}
+                        {}
                         <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-navy-900 dark:bg-black text-white p-3 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 w-48 z-50 scale-95 group-hover:scale-100 origin-bottom border border-gray-700">
                            <div className="flex items-center justify-between mb-1">
                              <p className="font-bold text-sm truncate">{ev.title}</p>
@@ -306,10 +264,9 @@ export default function JRCampusSchedule() {
                            </div>
                            <p className="text-xs text-gray-400 flex items-center gap-1 mb-1"><MdAccessTime/> {formatTime(ev.start, ev.duration)}</p>
                            <p className="text-xs text-gray-400 flex items-center gap-1"><MdPerson/> {ev.organizer}</p>
-                           {/* Arrow pointing down */}
+                           {}
                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-navy-900 dark:border-t-black"></div>
                         </div>
-
                       </div>
                     );
                   })}
@@ -318,8 +275,7 @@ export default function JRCampusSchedule() {
           </div>
         </div>
       </div>
-
-      {/* 3. EVENT MODAL (Read-Only Info View for JR Assistant) */}
+      {}
       <div 
         className={`fixed inset-0 z-[100] flex items-center justify-center bg-navy-900/60 backdrop-blur-sm transition-opacity duration-500 ease-out p-4 ${selectedEvent ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setSelectedEvent(null)}
@@ -328,7 +284,7 @@ export default function JRCampusSchedule() {
           className={`relative w-full max-w-2xl overflow-hidden rounded-[24px] bg-white shadow-2xl transition-all duration-500 ease-out dark:bg-navy-800 ${selectedEvent ? "scale-100 translate-y-0" : "scale-95 translate-y-8"}`}
           onClick={(e) => e.stopPropagation()} 
         >
-          {/* Header */}
+          {}
           <div className={`p-6 border-b border-gray-100 dark:border-navy-700 flex justify-between items-start ${selectedEvent?.status === "Course" ? "bg-brand-500/10" : selectedEvent?.status === "Conflict" ? "bg-red-500/10" : selectedEvent?.status === "Pending" ? "bg-amber-500/10" : "bg-gradient-to-r from-green-500/10 to-emerald-500/10"}`}>
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -343,9 +299,8 @@ export default function JRCampusSchedule() {
               <MdClose className="h-5 w-5" />
             </button>
           </div>
-
           <div className="p-8 max-h-[60vh] overflow-y-auto bg-gray-50/50 dark:bg-navy-900/20">
-            {/* If there is a conflict, show the warning immediately */}
+            {}
             {selectedEvent?.status === "Conflict" && (
               <div className="mb-6 p-4 rounded-xl bg-red-50 border-l-4 border-red-500 flex items-start gap-3 dark:bg-red-500/10 dark:border-red-500">
                 <MdWarning className="text-red-500 text-xl shrink-0 mt-0.5" />
@@ -355,7 +310,6 @@ export default function JRCampusSchedule() {
                 </div>
               </div>
             )}
-
             <div className="grid grid-cols-2 gap-y-6 gap-x-8 mb-6 border-b border-gray-100 pb-6 dark:border-navy-700">
                <div>
                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1"><MdAccessTime/> Time Slot</p>
@@ -368,7 +322,6 @@ export default function JRCampusSchedule() {
                  <p className="font-bold text-navy-700 dark:text-white mt-1 text-lg">{selectedEvent?.organizer}</p>
                </div>
             </div>
-
             <div className="rounded-2xl bg-white p-5 border border-gray-100 shadow-sm dark:bg-navy-800 dark:border-navy-700 flex items-center justify-between">
                <div>
                  <p className="text-sm font-bold text-navy-700 dark:text-white">Need to resolve this?</p>
@@ -383,7 +336,6 @@ export default function JRCampusSchedule() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

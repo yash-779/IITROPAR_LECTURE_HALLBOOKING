@@ -11,5 +11,4 @@ const TooltipHorizon = (props) => {
     </Tooltip>
   );
 };
-
 export default TooltipHorizon;

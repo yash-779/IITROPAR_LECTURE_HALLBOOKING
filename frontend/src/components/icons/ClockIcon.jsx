@@ -14,5 +14,4 @@ const ClockIcon = () => {
     </svg>
   );
 };
-
 export default ClockIcon;

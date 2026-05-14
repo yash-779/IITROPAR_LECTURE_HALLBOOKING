@@ -14,5 +14,4 @@ const TablesIcon = () => {
     </svg>
   );
 };
-
 export default TablesIcon;

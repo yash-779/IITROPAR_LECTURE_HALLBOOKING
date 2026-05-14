@@ -1,4 +1,3 @@
-// courseData.js
 const courseData = [
   { code: 'AI504', venue: 'EE-1', schedule: [{ day: 'Friday', time: '11:00 - 11:50' }, { day: 'Thursday', time: '11:00 - 11:50' }, { day: 'Tuesday', time: '14:00 - 14:50' }] },
   { code: 'AI528', venue: 'CS-1', schedule: [{ day: 'Thursday', time: '16:00 - 16:50' }, { day: 'Wednesday', time: '16:00 - 16:50' }] },
@@ -93,6 +92,4 @@ const courseData = [
   { code: 'PH554', venue: 'S-102', schedule: [{ day: 'Friday', time: '10:00 - 10:50' }, { day: 'Monday', time: '14:00 - 14:50' }, { day: 'Thursday', time: '10:00 - 10:50' }] },
   { code: 'PH612', venue: 'S-103', schedule: [{ day: 'Friday', time: '12:00 - 12:50' }, { day: 'Thursday', time: '12:00 - 12:50' }, { day: 'Tuesday', time: '15:00 - 15:50' }] },
 ];
-
-module.exports = courseData; // For Backend
-// export default courseData; // Use this line instead for your React Frontend
+module.exports = courseData; 

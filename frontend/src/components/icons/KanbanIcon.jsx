@@ -14,5 +14,4 @@ const KanbanIcon = () => {
     </svg>
   );
 };
-
 export default KanbanIcon;

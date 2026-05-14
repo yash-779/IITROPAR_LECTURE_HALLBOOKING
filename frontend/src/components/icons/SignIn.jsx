@@ -14,5 +14,4 @@ const SignIn = () => {
     </svg>
   );
 };
-
 export default SignIn;

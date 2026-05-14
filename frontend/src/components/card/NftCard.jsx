@@ -1,7 +1,6 @@
 import { IoHeart, IoHeartOutline } from "react-icons/io5";
 import { useState } from "react";
 import Card from "components/card";
-
 const NftCard = ({ title, author, price, image, bidders, extra }) => {
   const [heart, setHeart] = useState(true);
   return (
@@ -28,7 +27,6 @@ const NftCard = ({ title, author, price, image, bidders, extra }) => {
             </div>
           </button>
         </div>
-
         <div className="mb-3 flex items-center justify-between px-1 md:flex-col md:items-start lg:flex-row lg:justify-between xl:flex-col xl:items-start 3xl:flex-row 3xl:justify-between">
           <div className="mb-2">
             <p className="text-lg font-bold text-navy-700 dark:text-white">
@@ -39,7 +37,6 @@ const NftCard = ({ title, author, price, image, bidders, extra }) => {
               By {author}{" "}
             </p>
           </div>
-
           <div className="flex flex-row-reverse md:mt-2 lg:mt-0">
             <span className="z-0 ml-px inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#E0E5F2] text-xs text-navy-700 dark:!border-navy-800 dark:bg-gray-800 dark:text-white">
               +5
@@ -58,7 +55,6 @@ const NftCard = ({ title, author, price, image, bidders, extra }) => {
             ))}
           </div>
         </div>
-
         <div className="flex items-center justify-between md:flex-col md:items-start lg:flex-row lg:justify-between xl:flex-col 2xl:items-start 3xl:flex-row 3xl:items-center 3xl:justify-between">
           <div className="flex">
             <p className="mb-2 text-sm font-bold text-brand-500 dark:text-white">
@@ -76,5 +72,4 @@ const NftCard = ({ title, author, price, image, bidders, extra }) => {
     </Card>
   );
 };
-
 export default NftCard;

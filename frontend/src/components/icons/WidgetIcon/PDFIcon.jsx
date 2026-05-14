@@ -14,5 +14,4 @@ const PDFIcon = () => {
     </svg>
   );
 };
-
 export default PDFIcon;

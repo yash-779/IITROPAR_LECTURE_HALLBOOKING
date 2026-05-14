@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { fetchAllBookings, submitJrDecision } from "../../services/api";
 import courseData from "../../variables/courseData";
-import { ROOM_CAPACITIES, VENUES, EXISTING_BOOKINGS } from "../../variables/mockData";
-
+import { ROOM_CAPACITIES, VENUES } from "../../variables/constants";
 import {
   MdOutlineLibraryAddCheck, MdEvent, MdLocationOn, MdPerson, MdClose,
   MdFilterList, MdOutlineArrowForward, MdCheckCircle,
@@ -10,7 +9,6 @@ import {
   MdCalendarToday, MdBlock, MdSend, MdCorporateFare,
   MdPendingActions,
 } from "react-icons/md";
-// Add this right below your imports!
 const LOCAL_VENUES = [
   { id: "m1", name: "M1", title: "Lecture Hall M1", block: "Radhakrishnan Block" },
   { id: "m2", name: "M2", title: "Lecture Hall M2", block: "Radhakrishnan Block" },
@@ -19,24 +17,19 @@ const LOCAL_VENUES = [
   { id: "m5", name: "M5", title: "Lecture Hall M5", block: "Radhakrishnan Block" },
   { id: "m6", name: "M6", title: "Lecture Hall M6", block: "Radhakrishnan Block" },
   { id: "audi", name: "Auditorium", title: "Main Auditorium", block: "Radhakrishnan Block" },
-  
   { id: "cs1", name: "CS1", title: "CS1", block: "S. Ramanujan Block" },
   { id: "cs2", name: "CS2", title: "CS2", block: "S. Ramanujan Block" },
   { id: "cssh", name: "CS(SH)", title: "CS(SH)", block: "S. Ramanujan Block" },
-  
   { id: "ee1", name: "EE1", title: "EE1", block: "J. C. Bose Block" },
   { id: "ee2", name: "EE2", title: "EE2", block: "J. C. Bose Block" },
   { id: "ee3", name: "EE3", title: "EE3", block: "J. C. Bose Block" },
   { id: "eesh", name: "EE(SH)", title: "EE(SH)", block: "J. C. Bose Block" },
-  
   { id: "me1", name: "ME1", title: "ME1", block: "Satish Dhawan Block" },
   { id: "me2", name: "ME2", title: "ME2", block: "Satish Dhawan Block" },
   { id: "mesh", name: "ME(SH)", title: "ME(SH)", block: "Satish Dhawan Block" },
-  
   { id: "cy1", name: "CY1", title: "CY1", block: "S. Bhatnagar Block" },
   { id: "cy2", name: "CY2", title: "CY2", block: "S. Bhatnagar Block" },
   { id: "cysh", name: "CY(SH)", title: "CY(SH)", block: "S. Bhatnagar Block" },
-  
   { id: "s001", name: "S-001", title: "S-001", block: "Super Academic Block" },
   { id: "s002", name: "S-002", title: "S-002", block: "Super Academic Block" },
   { id: "s003", name: "S-003", title: "S-003", block: "Super Academic Block" },
@@ -47,92 +40,19 @@ const LOCAL_VENUES = [
   { id: "s106", name: "S-106", title: "S-106", block: "Super Academic Block" },
   { id: "s107", name: "S-107", title: "S-107", block: "Super Academic Block" },
 ];
-
 const START_HOUR = 8;
 const END_HOUR   = 21;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
-
 const timeToPercent = (t) => {
   const [h, m] = t.split(":").map(Number);
   return Math.max(0, Math.min(100, ((h + m / 60 - START_HOUR) / TOTAL_HOURS) * 100));
 };
-
-const getClashes = (date, venueId, start, end) =>
-  EXISTING_BOOKINGS.filter((eb) => {
-    if (eb.date !== date || eb.venueId !== venueId) return false;
-    return timeToPercent(start) < timeToPercent(eb.endTime) &&
-           timeToPercent(end)   > timeToPercent(eb.startTime);
-  });
-
-const normalizeVenueString = (value) =>
-  value ? value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
-
-const getPriorityKey = (priority) =>
-  priority._uid || `${priority.venueId}_${priority.date}_${priority.startTime}_${priority.endTime}`;
-
-const venueMatchesCourse = (courseVenue, venueName, venueId) => {
-  const cv = normalizeVenueString(courseVenue);
-  const vn = normalizeVenueString(venueName);
-  const vid = normalizeVenueString(venueId);
-  return cv === vn || cv === vid || vn === vid ||
-         (cv === 'AUDI' && vid === 'AUDITORIUM') ||
-         (cv === 'AUDITORIUM' && vid === 'AUDI');
-};
-
-const formatDate = (d) =>
-  new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-
-const formatTime = (t) => {
-  const [h, m] = t.split(":").map(Number);
-  return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
-};
-
-const STATUS_CFG = {
-  "Pending":         { color: "text-brand-400",  bg: "bg-brand-500/15",  dot: "bg-brand-500",  label: "Pending Review",  pulse: false },
-  "Action Required": { color: "text-orange-400", bg: "bg-orange-500/15", dot: "bg-orange-500", label: "Action Required", pulse: true  },
-  "Approved":        { color: "text-green-400",  bg: "bg-green-500/15",  dot: "bg-green-500",  label: "Approved",        pulse: false },
-  "Rejected":        { color: "text-red-400",    bg: "bg-red-500/15",    dot: "bg-red-500",    label: "Rejected",        pulse: false },
-};
-const scfg = (s) => STATUS_CFG[s] || STATUS_CFG["Pending"];
-
-const stageColor = (s) =>
-  s === "approved"          ? "bg-green-500"
-  : s === "rejected"        ? "bg-red-500"
-  : s === "changes_requested" ? "bg-orange-500"
-  : "bg-navy-700 dark:bg-navy-600";
-
-const getSystemSuggestion = (priorities, audience) => {
-  const order = [
-    { id: "m4", name: "Room M4" }, { id: "m5", name: "Room M5" },
-    { id: "m6", name: "Room M6" }, { id: "audi", name: "Auditorium" },
-  ];
-  const p = priorities[0];
-  for (const v of order) {
-    const alreadyUsed = priorities.some((x) => x.venueId === v.id && x.date === p.date);
-    if (!alreadyUsed && ROOM_CAPACITIES[v.id] >= audience &&
-        getClashes(p.date, v.id, p.startTime, p.endTime).length === 0) {
-      return { id: "sys", date: p.date, startTime: p.startTime, endTime: p.endTime, venueId: v.id, venueName: v.name, block: "System Suggested" };
-    }
-  }
-  return null;
-};
-
-// ─────────────────────────────────────────────────────────────
-// VENUE TIMELINE ROW
-// ─────────────────────────────────────────────────────────────
-function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, onSelect }) {
-  const clashes  = getClashes(priority.date, priority.venueId, priority.startTime, priority.endTime);
-  const cap      = ROOM_CAPACITIES[priority.venueId] || 0;
-  const capOk    = cap >= audience;
-  const isValid  = clashes.length === 0 && capOk;
-
-  const pS = timeToPercent(priority.startTime);
-  const pW = timeToPercent(priority.endTime) - pS;
-  const dateDayName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date(priority.date).getDay()];
+const getAllEvts = (date, venueId, venueName, allBookings, ignoreBookingId) => {
+  const dateDayName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date(date).getDay()];
   const courseEvents = courseData.flatMap((course, idx) => {
     if (!course.schedule || !course.venue) return [];
     return course.schedule
-      .filter((slot) => slot.day === dateDayName && venueMatchesCourse(course.venue, priority.venueName, priority.venueId))
+      .filter((slot) => slot.day === dateDayName && venueMatchesCourse(course.venue, venueName, venueId))
       .map((slot, scheduleIdx) => ({
         title: `${course.code} Class`,
         startTime: slot.time.split(" - ")[0],
@@ -143,27 +63,93 @@ function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, 
         id: `course-${course.code}-${scheduleIdx}`,
       }));
   });
-
-  const bgEvts = [
-    ...courseEvents,
-    ...EXISTING_BOOKINGS.filter(
-      (e) => e.date === priority.date && e.venueId === priority.venueId
-    ),
+  const firmBookings = (allBookings || []).reduce((acc, b) => {
+    if (b.id === ignoreBookingId) return acc;
+    if (b.allocatedSlot && b.allocatedSlot.date === date && b.allocatedSlot.venueId === venueId) {
+      if (b.status === "Approved" || b.status === "Pending" || b.status === "Action Required") {
+        acc.push({ ...b.allocatedSlot, title: b.activityType, id: b.id });
+      }
+    }
+    return acc;
+  }, []);
+  return [...courseEvents, ...firmBookings];
+};
+const getClashes = (date, venueId, venueName, start, end, allBookings, ignoreBookingId) => {
+  const evts = getAllEvts(date, venueId, venueName, allBookings, ignoreBookingId);
+  return evts.filter((eb) => {
+    return timeToPercent(start) < timeToPercent(eb.endTime) &&
+           timeToPercent(end)   > timeToPercent(eb.startTime);
+  });
+};
+const normalizeVenueString = (value) =>
+  value ? value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
+const getPriorityKey = (priority) =>
+  priority._uid || `${priority.venueId}_${priority.date}_${priority.startTime}_${priority.endTime}`;
+const venueMatchesCourse = (courseVenue, venueName, venueId) => {
+  const cv = normalizeVenueString(courseVenue);
+  const vn = normalizeVenueString(venueName);
+  const vid = normalizeVenueString(venueId);
+  if (!cv) return false;
+  return cv === vn || cv === vid ||
+         (cv === 'AUDI' && vid === 'AUDITORIUM') ||
+         (cv === 'AUDITORIUM' && vid === 'AUDI') ||
+         (cv === 'AUDI' && vn === 'MAINAUDITORIUM');
+};
+const formatDate = (d) =>
+  new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const formatTime = (t) => {
+  const [h, m] = t.split(":").map(Number);
+  return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+};
+const STATUS_CFG = {
+  "Pending":         { color: "text-brand-400",  bg: "bg-brand-500/15",  dot: "bg-brand-500",  label: "Pending Review",  pulse: false },
+  "Action Required": { color: "text-orange-400", bg: "bg-orange-500/15", dot: "bg-orange-500", label: "Action Required", pulse: true  },
+  "Approved":        { color: "text-green-400",  bg: "bg-green-500/15",  dot: "bg-green-500",  label: "Approved",        pulse: false },
+  "Rejected":        { color: "text-red-400",    bg: "bg-red-500/15",    dot: "bg-red-500",    label: "Rejected",        pulse: false },
+};
+const scfg = (s) => STATUS_CFG[s] || STATUS_CFG["Pending"];
+const stageColor = (s) =>
+  s === "approved"          ? "bg-green-500"
+  : s === "rejected"        ? "bg-red-500"
+  : s === "changes_requested" ? "bg-orange-500"
+  : "bg-navy-700 dark:bg-navy-600";
+const getSystemSuggestion = (priorities, audience, allBookings, ignoreBookingId) => {
+  const order = [
+    { id: "m4", name: "Room M4" }, { id: "m5", name: "Room M5" },
+    { id: "m6", name: "Room M6" }, { id: "audi", name: "Auditorium" },
   ];
+  const p = priorities[0];
+  for (const v of order) {
+    const alreadyUsed = priorities.some((x) => x.venueId === v.id && x.date === p.date);
+    if (!alreadyUsed && ROOM_CAPACITIES[v.id] >= audience &&
+        getClashes(p.date, v.id, v.name, p.startTime, p.endTime, allBookings, ignoreBookingId).length === 0) {
+      return { id: "sys", date: p.date, startTime: p.startTime, endTime: p.endTime, venueId: v.id, venueName: v.name, block: "System Suggested" };
+    }
+  }
+  return null;
+};
+function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, onSelect, allBookings, ignoreBookingId }) {
+  const bgEvts = getAllEvts(priority.date, priority.venueId, priority.venueName, allBookings, ignoreBookingId);
+  const clashes = bgEvts.filter((eb) => {
+    return timeToPercent(priority.startTime) < timeToPercent(eb.endTime) &&
+           timeToPercent(priority.endTime)   > timeToPercent(eb.startTime);
+  });
+  const cap      = ROOM_CAPACITIES[priority.venueId] || 0;
+  const capOk    = cap >= audience;
+  const isValid  = clashes.length === 0 && capOk;
+  const pS = timeToPercent(priority.startTime);
+  const pW = timeToPercent(priority.endTime) - pS;
   const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => START_HOUR + i);
-
   const outerBorder = isSuggested
     ? "border-purple-500/50"
     : isSelected ? "border-brand-500"
     : isValid    ? "border-navy-600 hover:border-navy-500"
     :              "border-red-800/40";
-
   const outerBg = isSuggested
     ? "dark:bg-purple-950/30"
     : isSelected ? "dark:bg-brand-900/20"
     : isValid    ? "dark:bg-navy-900/50"
     :              "dark:bg-red-950/20";
-
   const headerBg = isSuggested
     ? "dark:bg-purple-900/30 dark:border-b dark:border-purple-700/30"
     : isSelected
@@ -171,11 +157,9 @@ function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, 
     : isValid
     ? "dark:bg-navy-800/60 dark:border-b dark:border-navy-700"
     : "dark:bg-red-900/10 dark:border-b dark:border-red-800/30";
-
   return (
     <div className={`rounded-2xl border-2 overflow-hidden transition-all duration-300 ${outerBorder} ${outerBg} ${isSelected ? "ring-2 ring-brand-500/40 ring-offset-2 dark:ring-offset-navy-800" : ""}`}>
-
-      {/* Header row */}
+      {}
       <div className={`px-5 py-3.5 flex flex-wrap gap-y-2 gap-x-4 justify-between items-center border-b border-white/5 ${headerBg}`}>
         <div className="flex items-center gap-3 flex-wrap">
           <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${isSuggested ? "bg-purple-500/20 text-purple-300" : "dark:bg-navy-700 text-gray-400"}`}>
@@ -190,7 +174,6 @@ function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, 
             {formatTime(priority.startTime)} – {formatTime(priority.endTime)}
           </span>
         </div>
-
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest ${
             isSuggested   ? "bg-purple-500/20 text-purple-300"
@@ -212,10 +195,9 @@ function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, 
             </button>
         </div>
       </div>
-
-      {/* Timeline */}
+      {}
       <div className="px-5 pt-4 pb-4">
-        {/* Hour labels */}
+        {}
         <div className="relative h-5 mb-1 select-none">
           {hours.map((h, i) => {
             if (i % 2 !== 0) return null;
@@ -231,10 +213,9 @@ function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, 
             );
           })}
         </div>
-
-        {/* Track */}
+        {}
         <div className="relative h-14 rounded-xl overflow-hidden dark:bg-navy-950/70 bg-gray-100 border border-navy-700/50">
-          {/* Grid lines */}
+          {}
           {hours.map((_, i) => (
             <div
               key={i}
@@ -242,8 +223,7 @@ function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, 
               style={{ left: `${(i / TOTAL_HOURS) * 100}%` }}
             />
           ))}
-
-          {/* Existing bookings */}
+          {}
           {bgEvts.map((eb, idx) => {
             const s = timeToPercent(eb.startTime);
             const w = timeToPercent(eb.endTime) - s;
@@ -258,8 +238,7 @@ function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, 
               </div>
             );
           })}
-
-          {/* Requested slot */}
+          {}
           <div
             title={`Requested: ${priority.startTime}–${priority.endTime}`}
             className={`absolute top-1 bottom-1 rounded-xl flex items-center justify-center overflow-hidden shadow-lg transition-all ${
@@ -278,8 +257,7 @@ function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, 
             </span>
           </div>
         </div>
-
-        {/* Capacity + clash info */}
+        {}
         <div className="flex justify-between items-center mt-2 text-[11px] font-medium flex-wrap gap-1">
           <div className="flex items-center gap-3 text-gray-500">
             <span>Capacity: <span className="dark:text-gray-300 text-gray-600 font-bold">{cap || "?"}</span></span>
@@ -295,34 +273,26 @@ function VenueTimelineRow({ priority, audience, label, isSuggested, isSelected, 
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// TRACKER NODE
-// ─────────────────────────────────────────────────────────────
 function TrackerNode({ label, status, isActive, comment, commentLabel }) {
   const faded = !isActive && !["approved","rejected","changes_requested"].includes(status);
-
   const dotClass =
     status === "approved"            ? "bg-green-500 shadow-[0_0_0_4px_rgba(34,197,94,0.2)]"
     : status === "rejected"          ? "bg-red-500 shadow-[0_0_0_4px_rgba(239,68,68,0.2)]"
     : status === "changes_requested" ? "bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.2)] animate-pulse"
     : isActive                       ? "bg-brand-500 shadow-[0_0_0_4px_rgba(67,24,255,0.2)] animate-pulse"
     : "bg-navy-600";
-
   const badgeCls =
     status === "approved"            ? "bg-green-500/15 text-green-400"
     : status === "rejected"          ? "bg-red-500/15 text-red-400"
     : status === "changes_requested" ? "bg-orange-500/15 text-orange-400"
     : isActive                       ? "bg-brand-500/15 text-brand-400"
     : "dark:bg-navy-700 bg-gray-100 text-gray-500";
-
   const badgeLabel =
     status === "approved"            ? "Approved"
     : status === "rejected"          ? "Rejected"
     : status === "changes_requested" ? "Changes Requested"
     : isActive                       ? "In Progress"
     : "Pending";
-
   return (
     <div className={`relative flex items-start gap-4 transition-opacity duration-300 ${faded ? "opacity-30" : "opacity-100"}`}>
       <div className={`z-10 mt-1 h-4 w-4 flex-shrink-0 rounded-full border-4 border-white dark:border-navy-800 transition-all duration-500 ${dotClass}`} />
@@ -345,10 +315,6 @@ function TrackerNode({ label, status, isActive, comment, commentLabel }) {
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// MAIN COMPONENT
-// ─────────────────────────────────────────────────────────────
 export default function JRApprovals() {
   const [isOpen,          setIsOpen]          = useState(false);
   const [modalVisible,    setModalVisible]    = useState(false);
@@ -363,19 +329,20 @@ export default function JRApprovals() {
   const [bookings,        setBookings]        = useState([]);
   const [isLoading,       setIsLoading]       = useState(true);
   const [isSaving,        setIsSaving]        = useState(false);
-
-  // Load bookings from DB — show only those that cleared faculty stage
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
       try {
         const all = await fetchAllBookings();
-        // Normalise: map _id → id, populate flat fields
         const mapped = all.map(b => ({
           ...b,
           id: b._id,
           studentName: b.requester?.name || "Student",
+          entryNo: b.requester?.entryNo || "—",
+          email: b.requester?.email || "—",
+          department: b.requester?.department || "—",
           faculty: b.facultyInCharge?.name || "Faculty",
+          facultyEmail: b.facultyInCharge?.email || "—",
         }));
         setBookings(mapped);
       } catch (e) {
@@ -386,14 +353,8 @@ export default function JRApprovals() {
     };
     load();
   }, []);
-
-  // JR queue = bookings where faculty approved and JR hasn't acted yet
   const jrQueue = bookings.filter(b => b.tracker?.faculty === "approved");
-
-  // 1. Get today's date for the input constraint
   const todayStr = new Date().toISOString().split('T')[0];
-
-  // 2. Extract unique Campus Blocks from your VENUES mock data
 const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))];
   const openModal = (req) => {
     setActiveReq(req);
@@ -404,16 +365,23 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
     setIsOpen(true);
     requestAnimationFrame(() => requestAnimationFrame(() => setModalVisible(true)));
   };
-
   const closeModal = () => {
     setModalVisible(false);
     setTimeout(() => { setIsOpen(false); setActiveReq(null); }, 280);
   };
-
-  // 3. Updated Filter Logic to search by Block instead of exact room
   const displayed = jrQueue.filter((r) => {
-    const ms = filterStatus === "all" || (r.status || "").toLowerCase() === filterStatus.toLowerCase();
-    const md = !filterDate  || r.priorities.some((p) => p.date === filterDate);
+    const bDate = r.allocatedSlot?.date || (r.priorities && r.priorities[0]?.date);
+    const isPastDate = bDate && bDate < todayStr;
+    if (filterDate) {
+      const hasDate = r.priorities.some(p => p.date === filterDate) || r.allocatedSlot?.date === filterDate;
+      if (!hasDate) return false;
+      if (filterDate < todayStr && r.status !== "Approved") return false;
+    } else {
+      if (isPastDate) return false;
+    }
+    if (filterStatus === "approved" && r.status !== "Approved") return false;
+    if (filterStatus === "rejected" && r.status !== "Rejected") return false;
+    if (filterStatus === "pending" && (r.status === "Approved" || r.status === "Rejected")) return false;
     const mv = filterVenue === "All Venues" || r.priorities.some((p) => {
       const venueObj = LOCAL_VENUES.find(v =>
         v.title === p.venueName ||
@@ -423,25 +391,19 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
       );
       return venueObj?.block === filterVenue;
     });
-    return ms && md && mv;
+    return mv;
   });
-
   const urgent = jrQueue.find((r) => r.status === "Pending" || r.status === "Action Required");
-
   const allInvalid = activeReq?.priorities.every((p) =>
-    getClashes(p.date, p.venueId, p.startTime, p.endTime).length > 0 ||
+    getClashes(p.date, p.venueId, p.venueName, p.startTime, p.endTime, bookings, activeReq.id).length > 0 ||
     (ROOM_CAPACITIES[p.venueId] || 0) < (activeReq?.audienceCount || 0)
   );
-
   const suggestion = activeReq && allInvalid
-    ? getSystemSuggestion(activeReq.priorities, activeReq.audienceCount)
+    ? getSystemSuggestion(activeReq.priorities, activeReq.audienceCount, bookings, activeReq.id)
     : null;
-
   return (
     <div className="mt-5 w-full min-h-[80vh] rounded-[20px] dark:bg-gradient-to-br dark:from-navy-900 dark:to-navy-800 p-2 lg:p-4">
-      
-
-      {/* ─── FILTER ROW ─── */}
+      {}
       <div className="mb-6 flex flex-wrap items-center gap-3 px-1">
         <div className="flex items-center gap-1.5 text-brand-500 font-bold text-sm">
           <MdFilterList size={18} /> Filters
@@ -484,8 +446,7 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
           </button>
         )}
       </div>
-
-      {/* ─── NEXT PENDING BANNER ─── */}
+      {}
       {urgent && (
         <div className="mb-6 rounded-2xl bg-gradient-to-r from-brand-500 to-indigo-600 p-5 text-white shadow-lg shadow-brand-500/30">
           <p className="text-xs font-bold uppercase tracking-wider text-white/80 mb-2 flex items-center gap-1.5">
@@ -508,8 +469,7 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
           </div>
         </div>
       )}
-
-      {/* ─── CARDS GRID ─── */}
+      {}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {displayed.map((req) => {
           const cfg = scfg(req.status);
@@ -519,7 +479,7 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
               onClick={() => openModal(req)}
               className="group relative flex cursor-pointer flex-col rounded-[16px] bg-white p-6 shadow-sm border border-gray-100 transition-all duration-300 ease-in-out hover:scale-[1.02] active:scale-95 hover:shadow-[0_0_24px_rgba(99,102,241,0.2)] dark:bg-navy-800 dark:border-navy-700"
             >
-              {/* L-shaped approval progress indicator */}
+              {}
               <div className="absolute top-0 left-0 w-2 h-full flex flex-col z-10 rounded-l-[16px] overflow-hidden border-r border-gray-50 dark:border-navy-800">
                 <div className={`w-full h-1/2 transition-all duration-500 ${stageColor(req.tracker.faculty)}`} title="Faculty" />
                 <div className={`w-full h-1/2 border-t border-white/20 transition-all duration-500 ${stageColor(req.tracker.jrAssistant)}`} title="Jr. Assistant" />
@@ -528,26 +488,23 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                 <div className={`w-1/2 transition-all duration-500 ${stageColor(req.tracker.superintendent)}`} title="Superintendent" />
                 <div className={`w-1/2 border-l border-white/10 transition-all duration-500 ${stageColor(req.tracker.ar)}`} title="ar" />
               </div>
-
               <div className="pl-3 pb-2">
-                {/* Title + badge */}
+                {}
                 <div className="flex items-start justify-between mb-1 gap-2">
                   <h3 className="text-lg font-bold tracking-wide text-navy-700 dark:text-white truncate">{req.activityType}</h3>
                   <span className={`flex-shrink-0 rounded-md px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${cfg.bg} ${cfg.color} ${cfg.pulse ? "animate-pulse" : ""}`}>
                     {cfg.label}
                   </span>
                 </div>
-
-                {/* Club + audience */}
+                {}
                 <p className="text-xs font-bold text-gray-400 uppercase mb-3">
                   {req.clubName} • <span className="text-brand-400">{req.audienceCount} people</span>
                 </p>
-
-                {/* Priority slots compact list */}
+                {}
                 <div className="bg-gray-50 dark:bg-navy-900/60 p-3 rounded-xl border border-gray-100 dark:border-navy-700 space-y-2">
                   <p className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-1.5">Requested Slots</p>
                   {req.priorities.map((p, i) => {
-                    const c = getClashes(p.date, p.venueId, p.startTime, p.endTime);
+                    const c = getClashes(p.date, p.venueId, p.venueName, p.startTime, p.endTime, bookings, req.id);
                     const capOk = (ROOM_CAPACITIES[p.venueId] || 0) >= req.audienceCount;
                     const valid = c.length === 0 && capOk;
                     return (
@@ -565,18 +522,15 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                     );
                   })}
                 </div>
-
                 <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-3 font-medium">Submitted: {req.submittedAt}</p>
-
-                {/* Hover CTA */}
+                {}
                 <div className="mt-3 pt-3 border-t border-dashed border-gray-100 dark:border-navy-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex justify-between items-center text-xs font-bold text-brand-500">
-                  Review &amp; Resolve <MdOutlineArrowForward size={16} />
+                  {req.tracker?.jrAssistant === "pending" ? "Review & Resolve" : "View Details"} <MdOutlineArrowForward size={16} />
                 </div>
               </div>
             </div>
           );
         })}
-
         {displayed.length === 0 && (
           <div className="col-span-full py-16 flex flex-col items-center justify-center rounded-[20px] border-2 border-dashed border-gray-200 dark:border-navy-700 dark:bg-navy-800/30">
             <MdEvent className="h-12 w-12 text-gray-400 mb-4" />
@@ -585,26 +539,22 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
           </div>
         )}
       </div>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          CENTER MODAL
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {}
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {}
           <div
             className={`fixed inset-0 z-[100] bg-navy-900/70 backdrop-blur-sm transition-opacity duration-300 ${modalVisible ? "opacity-100" : "opacity-0"}`}
             onClick={closeModal}
           />
-
-          {/* Modal */}
+          {}
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
             <div
               onClick={(e) => e.stopPropagation()}
               className={`relative w-full max-w-5xl bg-white dark:bg-navy-800 rounded-3xl shadow-2xl shadow-navy-900/50 flex flex-col transition-all duration-300 origin-center ${modalVisible ? "scale-100 opacity-100" : "scale-90 opacity-0"}`}
               style={{ maxHeight: "92vh" }}
             >
-              {/* Modal Header */}
+              {}
               <div className="flex-shrink-0 flex items-start justify-between p-6 bg-gradient-to-r from-brand-500/10 to-indigo-500/10 border-b border-gray-100 dark:border-navy-700 rounded-t-3xl">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -625,13 +575,12 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                   <MdClose size={20} />
                 </button>
               </div>
-
-              {/* Tabs */}
+              {}
               <div className="flex-shrink-0 flex border-b border-gray-100 dark:border-navy-700 px-6 bg-white dark:bg-navy-800">
                 {[
                   { id: "Details", emoji: "👤" },
                   { id: "Tracker", emoji: "📍" },
-                  { id: "Resolve", emoji: "⚡" },
+                  ...(activeReq?.tracker?.jrAssistant === "pending" || actionDone ? [{ id: "Resolve", emoji: "⚡" }] : []),
                 ].map(({ id, emoji }) => (
                   <button
                     key={id}
@@ -644,11 +593,9 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                   </button>
                 ))}
               </div>
-
-              {/* ── SCROLLABLE TAB CONTENT ── */}
+              {}
               <div className="flex-1 overflow-y-auto p-6 dark:bg-navy-800/40 rounded-b-3xl">
-
-                {/* ┄ Details Tab ┄ */}
+                {}
                 {activeTab === "Details" && activeReq && (
                   <div className="flex flex-col gap-5">
                     <div className="rounded-2xl bg-gray-50 p-5 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
@@ -656,10 +603,10 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-6">
                         <div><p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Name</p><p className="font-bold text-navy-700 dark:text-white mt-1">{activeReq.studentName}</p></div>
                         <div><p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Entry No.</p><p className="font-bold text-navy-700 dark:text-white mt-1">{activeReq.entryNo}</p></div>
-                        <div><p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Mobile</p><p className="font-bold text-navy-700 dark:text-white mt-1">{activeReq.mobile}</p></div>
+                        <div><p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Email</p><p className="font-bold text-navy-700 dark:text-white mt-1 text-xs break-all">{activeReq.email}</p></div>
+                        <div><p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Department</p><p className="font-bold text-navy-700 dark:text-white mt-1">{activeReq.department}</p></div>
                       </div>
                     </div>
-
                     <div className="rounded-2xl bg-gray-50 p-5 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
                       <h3 className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-4 flex items-center gap-2"><MdEvent size={14} /> Event Logistics</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 gap-x-6">
@@ -674,7 +621,6 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                         <div><p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Submitted</p><p className="font-bold text-navy-700 dark:text-white mt-1">{activeReq.submittedAt}</p></div>
                       </div>
                     </div>
-
                     <div className="rounded-2xl bg-gray-50 p-5 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
                       <h3 className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-4 flex items-center gap-2"><MdLocationOn size={14} /> Requested Venue & Schedule</h3>
                       <div className="space-y-3">
@@ -692,8 +638,7 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                     </div>
                   </div>
                 )}
-
-                {/* ┄ Tracker Tab ┄ */}
+                {}
                 {activeTab === "Tracker" && activeReq && (
                   <div className="relative pl-4 pt-2 pb-10">
                     <div className="absolute left-[23px] top-6 bottom-4 border-l-2 border-dashed border-brand-500/20" />
@@ -712,11 +657,10 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                     </div>
                   </div>
                 )}
-
-                {/* ┄ Resolve Tab ┄ */}
+                {}
                 {activeTab === "Resolve" && activeReq && (
                   <div className="space-y-5">
-                    {/* Conflict summary banner */}
+                    {}
                     {allInvalid ? (
                       <div className="rounded-2xl bg-red-500/15 border-2 border-red-500/40 p-5">
                         <div className="flex items-start gap-3">
@@ -754,12 +698,11 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                         </div>
                       </div>
                     )}
-
-                    {/* Priority timeline rows */}
+                    {}
                     <div className="space-y-3">
                       <h4 className="text-sm font-bold text-navy-700 dark:text-gray-200 px-1">Requested Slots Analysis</h4>
                       {activeReq.priorities.map((p, i) => {
-                        const isConflicting = getClashes(p.date, p.venueId, p.startTime, p.endTime).length > 0 || 
+                        const isConflicting = getClashes(p.date, p.venueId, p.venueName, p.startTime, p.endTime, bookings, activeReq.id).length > 0 || 
                                             (ROOM_CAPACITIES[p.venueId] || 0) < activeReq.audienceCount;
                         const priorityKey = getPriorityKey(p);
                         return (
@@ -771,13 +714,14 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                               isSuggested={false}
                               isSelected={selectedSlotId === priorityKey}
                               onSelect={setSelectedSlotId}
+                              allBookings={bookings}
+                              ignoreBookingId={activeReq.id}
                             />
                           </div>
                         );
                       })}
                     </div>
-
-                    {/* System suggestion when all priorities fail */}
+                    {}
                     {allInvalid && suggestion && (
                       <div>
                         <div className="flex items-center gap-3 my-3">
@@ -794,11 +738,12 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                           isSuggested={true}
                           isSelected={selectedSlotId === "sys"}
                           onSelect={() => setSelectedSlotId("sys")}
+                          allBookings={bookings}
+                          ignoreBookingId={activeReq.id}
                         />
                       </div>
                     )}
-
-                    {/* Action section */}
+                    {}
                     {actionDone ? (
                       <div className={`rounded-2xl p-8 text-center border-2 transition-all ${actionDone === "approved" ? "border-green-500/40 bg-green-900/20" : actionDone === "rejected" ? "border-red-500/40 bg-red-900/20" : "border-orange-500/40 bg-orange-900/20"}`}>
                         <p className="text-4xl mb-3">{actionDone === "approved" ? "✅" : actionDone === "rejected" ? "🚫" : "↩️"}</p>
@@ -815,7 +760,7 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                       </div>
                     ) : (
                       <>
-                        {/* Approve selected slot button */}
+                        {}
                         {selectedSlotId && (
                           <button
                             onClick={async () => {
@@ -850,8 +795,7 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                             <MdCheckCircle size={20} /> {isSaving ? "Forwarding…" : "Forward Selected Slot to Superintendent"}
                           </button>
                         )}
-
-                        {/* Action buttons for reject/send back */}
+                        {}
                         <div className="rounded-2xl dark:bg-navy-900/70 bg-gray-50 border border-gray-100 dark:border-navy-700 p-5">
                           <h4 className="text-sm font-bold text-navy-700 dark:text-white mb-1 flex items-center gap-2">
                             <MdChat size={16} className={allInvalid ? "text-red-400" : "text-orange-400"} /> 
@@ -863,16 +807,15 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                               : "Select a valid slot above to approve, or reject the request if no allocation is possible."
                             }
                           </p>
-
                           {allInvalid && (
                             <>
-                              {/* Auto-generated rejection reason for all conflicts */}
+                              {}
                               {!rejectionReason && (
                                 <div className="mb-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs">
                                   <p className="font-bold mb-1">🔍 Conflict Analysis:</p>
                                   <ul className="space-y-0.5 ml-3 list-disc">
                                     {activeReq.priorities.map((p, i) => {
-                                      const clashes = getClashes(p.date, p.venueId, p.startTime, p.endTime);
+                                      const clashes = getClashes(p.date, p.venueId, p.venueName, p.startTime, p.endTime, bookings, activeReq.id);
                                       const capOk = (ROOM_CAPACITIES[p.venueId] || 0) >= activeReq.audienceCount;
                                       return (
                                         <li key={i}>
@@ -888,7 +831,6 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                               )}
                             </>
                           )}
-
                           <textarea
                             value={rejectionReason}
                             onChange={(e) => setRejectionReason(e.target.value)}
@@ -898,12 +840,11 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                             }
                             className="w-full rounded-xl p-3.5 text-sm border border-gray-200 dark:border-navy-700 dark:bg-navy-950 dark:text-gray-300 text-gray-700 bg-white outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 placeholder-gray-400 dark:placeholder-gray-600 min-h-[100px] mb-3 transition-all resize-none"
                           />
-
                           {allInvalid && !rejectionReason && (
                             <button
                               onClick={() => {
                                 const reasons = activeReq.priorities.map((p, i) => {
-                                  const clashes = getClashes(p.date, p.venueId, p.startTime, p.endTime);
+                                  const clashes = getClashes(p.date, p.venueId, p.venueName, p.startTime, p.endTime, bookings, activeReq.id);
                                   const capOk = (ROOM_CAPACITIES[p.venueId] || 0) >= activeReq.audienceCount;
                                   let reason = `Priority ${i+1} (${p.venueName}, ${formatDate(p.date)})`;
                                   if (clashes.length > 0) {
@@ -921,13 +862,11 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                               Auto-generate Rejection Reason
                             </button>
                           )}
-
                           {!allInvalid && (
                             <p className="text-xs text-gray-500 mb-3">
                               Pick the slot you want to approve above, then use the approve button. If there is no acceptable allocation, reject the booking instead.
                             </p>
                           )}
-
                           <div className="flex gap-3">
                             {allInvalid && (
                               <button
@@ -973,8 +912,7 @@ const uniqueBlocks = [...new Set(LOCAL_VENUES.map(v => v.block).filter(Boolean))
                     )}
                   </div>
                 )}
-
-              </div>{/* end scrollable */}
+              </div>{}
             </div>
           </div>
         </>

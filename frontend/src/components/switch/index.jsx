@@ -43,5 +43,4 @@ const Switch = (props) => {
     />
   );
 };
-
 export default Switch;

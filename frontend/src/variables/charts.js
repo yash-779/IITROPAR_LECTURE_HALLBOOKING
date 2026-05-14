@@ -4,7 +4,6 @@ export const barChartDataDailyTraffic = [
     data: [20, 30, 40, 20, 45, 50, 30],
   },
 ];
-
 export const barChartOptionsDailyTraffic = {
   chart: {
     toolbar: {
@@ -101,7 +100,6 @@ export const barChartOptionsDailyTraffic = {
     },
   },
 };
-
 export const pieChartOptions = {
   labels: ["Your files", "System", "Empty"],
   colors: ["#4318FF", "#6AD2FF", "#EFF4FB"],
@@ -145,9 +143,7 @@ export const pieChartOptions = {
     },
   },
 };
-
 export const pieChartData = [63, 25, 12];
-
 export const barChartDataWeeklyRevenue = [
   {
     name: "PRODUCT A",
@@ -165,7 +161,6 @@ export const barChartDataWeeklyRevenue = [
     color: "#EFF4FB",
   },
 ];
-
 export const barChartOptionsWeeklyRevenue = {
   chart: {
     stacked: true,
@@ -173,7 +168,6 @@ export const barChartOptionsWeeklyRevenue = {
       show: false,
     },
   },
-  // colors:['#ff3322','#faf']
   tooltip: {
     style: {
       fontSize: "12px",
@@ -218,7 +212,6 @@ export const barChartOptionsWeeklyRevenue = {
       },
     },
   },
-
   grid: {
     borderColor: "rgba(163, 174, 208, 0.3)",
     show: true,
@@ -255,7 +248,6 @@ export const barChartOptionsWeeklyRevenue = {
     },
   },
 };
-
 export const lineChartDataTotalSpent = [
   {
     name: "Revenue",
@@ -268,30 +260,25 @@ export const lineChartDataTotalSpent = [
     color: "#6AD2FF",
   },
 ];
-
 export const lineChartOptionsTotalSpent = {
   legend: {
     show: false,
   },
-
   theme: {
     mode: "light",
   },
   chart: {
     type: "line",
-
     toolbar: {
       show: false,
     },
   },
-
   dataLabels: {
     enabled: false,
   },
   stroke: {
     curve: "smooth",
   },
-
   tooltip: {
     style: {
       fontSize: "12px",
@@ -324,7 +311,6 @@ export const lineChartOptionsTotalSpent = {
     range: undefined,
     categories: ["SEP", "OCT", "NOV", "DEC", "JAN", "FEB"],
   },
-
   yaxis: {
     show: false,
   },

@@ -4,12 +4,10 @@ import {
   MdPendingActions, MdCheckCircle, MdCancel, MdTimer, 
   MdWarning, MdArrowForward
 } from "react-icons/md";
-
 export default function ExecutiveDashboard({ role }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const currentUserRole = role || "superintendent";
-
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -23,26 +21,20 @@ export default function ExecutiveDashboard({ role }) {
     };
     loadData();
   }, []);
-
-  // Compute Pipeline
   let submitted = 0;
   let facultyAppr = 0;
   let jrAppr = 0;
   let suptAppr = 0;
   let arAppr = 0;
-
-  // Compute stats for current role
   let pendingForRole = 0;
   let approvedByRole = 0;
   let rejectedByRole = 0;
-
   bookings.forEach(b => {
     submitted++;
     if (b.tracker?.faculty === 'approved') facultyAppr++;
     if (b.tracker?.jrAssistant === 'approved') jrAppr++;
     if (b.tracker?.superintendent === 'approved') suptAppr++;
     if (b.tracker?.ar === 'approved') arAppr++;
-
     if (currentUserRole === "superintendent") {
         if (b.tracker?.jrAssistant === 'approved' && b.tracker?.superintendent === 'pending' && b.status !== 'Rejected') {
             pendingForRole++;
@@ -57,22 +49,18 @@ export default function ExecutiveDashboard({ role }) {
         if (b.tracker?.ar === 'rejected') rejectedByRole++;
     }
   });
-
   const kpis = [
     { title: "Pending My Auth", value: pendingForRole, bg: "bg-amber-50 dark:bg-amber-500/10", color: "text-amber-500", border: "border-amber-100 dark:border-amber-500/20", icon: <MdPendingActions size={24}/> },
     { title: "Total Approved", value: approvedByRole, bg: "bg-green-50 dark:bg-green-500/10", color: "text-green-500", border: "border-green-100 dark:border-green-500/20", icon: <MdCheckCircle size={24}/> },
     { title: "Total Rejected", value: rejectedByRole, bg: "bg-red-50 dark:bg-red-500/10", color: "text-red-500", border: "border-red-100 dark:border-red-500/20", icon: <MdCancel size={24}/> },
     { title: "Avg Resolution", value: "< 24h", bg: "bg-blue-50 dark:bg-blue-500/10", color: "text-blue-500", border: "border-blue-100 dark:border-blue-500/20", icon: <MdTimer size={24}/> }
   ];
-
   if (loading) {
      return <div className="p-8 text-center text-gray-500 font-bold">Loading dashboard...</div>;
   }
-
   return (
     <div className="mt-5 w-full min-h-[85vh] rounded-[20px] dark:bg-navy-900 p-2 lg:p-4 flex flex-col gap-8">
-      
-      {/* 1. EXECUTIVE KPI CARDS */}
+      {}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi, index) => (
           <div key={index} className="flex flex-col rounded-2xl bg-white p-6 shadow-sm border border-gray-100 dark:bg-navy-800 dark:border-navy-700">
@@ -88,17 +76,14 @@ export default function ExecutiveDashboard({ role }) {
           </div>
         ))}
       </div>
-
-      {/* 2. SYSTEM PIPELINE & ALERTS */}
+      {}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* PIPELINE (Showing funnel drop-off) */}
+        {}
         <div className="col-span-1 lg:col-span-2 rounded-2xl bg-white p-6 shadow-sm border border-gray-100 dark:bg-navy-800 dark:border-navy-700">
           <div className="flex justify-between items-center mb-8">
              <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">System Approval Pipeline</h3>
              <span className="text-xs font-bold text-brand-500 bg-brand-50 px-2 py-1 rounded-md dark:bg-brand-500/10">Real-time Data</span>
           </div>
-          
           <div className="flex items-center justify-between px-2 overflow-x-auto pb-4">
             {[
               { step: "Submitted", count: submitted },
@@ -122,8 +107,7 @@ export default function ExecutiveDashboard({ role }) {
             ))}
           </div>
         </div>
-
-        {/* ALERTS */}
+        {}
         <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 dark:bg-navy-800 dark:border-navy-700">
           <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6">Actionable Alerts</h3>
           <div className="space-y-4">
@@ -154,8 +138,7 @@ export default function ExecutiveDashboard({ role }) {
           </div>
         </div>
       </div>
-
-      {/* 3. RECENT DECISIONS LOG */}
+      {}
       <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 dark:bg-navy-800 dark:border-navy-700">
         <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6">Recent Authority Decisions</h3>
         {bookings.filter(b => b.status === "Approved" || b.status === "Rejected").slice(0,3).length > 0 ? (
@@ -174,7 +157,6 @@ export default function ExecutiveDashboard({ role }) {
           <div className="text-center text-gray-500 text-sm font-bold p-4">No recent completed decisions</div>
         )}
       </div>
-
     </div>
   );
 }

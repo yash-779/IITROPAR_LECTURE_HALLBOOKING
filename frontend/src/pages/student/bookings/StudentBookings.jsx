@@ -8,7 +8,6 @@ import {
 } from "react-icons/md";
 import { Link } from "react-router-dom";
 import QRCode from "react-qr-code";
-
 export default function StudentBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +19,6 @@ export default function StudentBookings() {
   const [newDate, setNewDate] = useState("");
   const [newStartTime, setNewStartTime] = useState("");
   const [newEndTime, setNewEndTime] = useState("");
-
   const loadBookings = async () => {
     setLoading(true);
     try {
@@ -48,11 +46,9 @@ export default function StudentBookings() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     loadBookings();
   }, []);
-
   const handleResubmit = async () => {
     if (!newDate || !newStartTime || !newEndTime) return alert("Please select a valid time slot from the proposed options.");
     try {
@@ -68,7 +64,6 @@ export default function StudentBookings() {
       alert("Failed to resubmit request.");
     }
   };
-
   const handleCardClick = (booking) => {
     setSelectedBooking(booking);
     setIsOpen(true);
@@ -77,16 +72,21 @@ export default function StudentBookings() {
     setNewStartTime(booking.startTime);
     setNewEndTime(booking.endTime);
   };
-
+  const todayStr = new Date().toISOString().split('T')[0];
   const displayed = bookings.filter(b => {
-    const matchStatus = filterStatus === "all" || (b.status || "Pending").toLowerCase() === filterStatus.toLowerCase();
-    const matchDate = !filterDate || b.date === filterDate;
-    return matchStatus && matchDate;
+    const isPastDate = b.date && b.date < todayStr;
+    if (filterDate) {
+      if (b.date !== filterDate) return false;
+      if (filterDate < todayStr && b.status !== "Approved") return false;
+    } else {
+      if (isPastDate) return false;
+    }
+    if (filterStatus === "approved" && b.status !== "Approved") return false;
+    if (filterStatus === "rejected" && b.status !== "Rejected") return false;
+    if (filterStatus === "pending" && (b.status === "Approved" || b.status === "Rejected")) return false;
+    return true;
   });
-
   const upcomingBooking = bookings.find(b => b.status === "Approved");
-
-  // ── Helpers ──────────────────────────────────────────────
   const statusCfg = (status) => {
     switch (status) {
       case "Approved":      return { bg: "bg-green-500/15", color: "text-green-400", dot: "bg-green-500", label: "Approved" };
@@ -95,34 +95,29 @@ export default function StudentBookings() {
       default:              return { bg: "bg-gray-500/15",  color: "text-gray-400",  dot: "bg-gray-400",  label: "Pending" };
     }
   };
-
   const stageColor = (s) => {
     if (s === "approved") return "bg-green-500";
     if (s === "changes_requested") return "bg-orange-500";
     if (s === "rejected") return "bg-red-500";
     return "bg-gray-200 dark:bg-navy-700";
   };
-
   const fmtDate = (d) => {
     if (!d) return "TBD";
     const parsed = new Date(d);
     return isNaN(parsed) ? d : parsed.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   };
-
   const fmtTime = (t) => {
     if (!t) return "—";
     const [h, m] = t.split(":");
     const hr = parseInt(h, 10);
     return `${hr % 12 || 12}:${m} ${hr >= 12 ? "PM" : "AM"}`;
   };
-
   const trackerStages = [
     { key: "faculty", label: "Faculty" },
     { key: "jrAssistant", label: "Jr. Assistant" },
     { key: "superintendent", label: "Superintendent" },
     { key: "ar", label: "Dean / AR" },
   ];
-
   if (loading) {
     return (
       <div className="mt-20 flex flex-col items-center justify-center gap-3 text-gray-400">
@@ -131,11 +126,9 @@ export default function StudentBookings() {
       </div>
     );
   }
-
   return (
     <div className="mt-5 w-full min-h-[80vh] rounded-[20px] dark:bg-gradient-to-br dark:from-navy-900 dark:to-navy-800 p-2 lg:p-4">
-
-      {/* UPCOMING BANNER */}
+      {}
       {upcomingBooking && (
         <div className="mb-6 rounded-2xl bg-gradient-to-r from-brand-500 to-indigo-600 p-5 text-white shadow-lg shadow-brand-500/30">
           <p className="text-[10px] font-black uppercase tracking-widest text-white/70 mb-2 flex items-center gap-1.5">
@@ -154,8 +147,7 @@ export default function StudentBookings() {
           </div>
         </div>
       )}
-
-      {/* FILTER ROW */}
+      {}
       <div className="mb-6 flex flex-wrap items-center gap-3 px-1">
         <div className="flex items-center gap-1.5 text-brand-500 font-bold text-sm">
           <MdFilterList size={18} /> Filters
@@ -173,10 +165,9 @@ export default function StudentBookings() {
           className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-brand-500 dark:bg-navy-800 dark:border-navy-700 dark:text-white"
         >
           <option value="all">All Statuses</option>
-          <option value="Pending">Pending</option>
-          <option value="Action Required">Action Required</option>
-          <option value="Approved">Approved</option>
-          <option value="Rejected">Rejected</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
         </select>
         {(filterDate || filterStatus !== "all") && (
           <button
@@ -188,8 +179,7 @@ export default function StudentBookings() {
         )}
         <span className="ml-auto text-xs font-bold text-gray-400">{displayed.length} booking{displayed.length !== 1 ? "s" : ""}</span>
       </div>
-
-      {/* ── BOOKINGS GRID ── */}
+      {}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {displayed.map(booking => {
           const cfg = statusCfg(booking.status);
@@ -199,7 +189,7 @@ export default function StudentBookings() {
               onClick={() => handleCardClick(booking)}
               className="group relative flex cursor-pointer flex-col rounded-[18px] bg-white shadow-sm border border-gray-100 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_8px_30px_rgba(99,102,241,0.18)] active:scale-[0.98] dark:bg-navy-800 dark:border-navy-700 overflow-hidden"
             >
-              {/* ── L-shaped approval progress indicator ── */}
+              {}
               <div className="absolute top-0 left-0 w-1.5 h-full flex flex-col z-10 rounded-l-[18px] overflow-hidden">
                 <div className={`w-full h-1/2 transition-all duration-500 ${stageColor(booking.tracker.faculty)}`} title="Faculty" />
                 <div className={`w-full h-1/2 border-t border-white/10 transition-all duration-500 ${stageColor(booking.tracker.jrAssistant)}`} title="Jr. Assistant" />
@@ -208,10 +198,9 @@ export default function StudentBookings() {
                 <div className={`w-1/2 h-full transition-all duration-500 ${stageColor(booking.tracker.superintendent)}`} title="Superintendent" />
                 <div className={`w-1/2 h-full border-l border-white/10 transition-all duration-500 ${stageColor(booking.tracker.ar)}`} title="Dean / AR" />
               </div>
-
-              {/* ── Card body ── */}
+              {}
               <div className="pl-4 pr-5 pt-5 pb-4">
-                {/* Title + status badge */}
+                {}
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div className="min-w-0">
                     <h3 className="text-base font-bold tracking-wide text-navy-700 dark:text-white truncate leading-snug">
@@ -224,16 +213,14 @@ export default function StudentBookings() {
                     )}
                   </div>
                 </div>
-
-                {/* Club + faculty sub-line */}
+                {}
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">
                   <span className="inline-flex items-center gap-1"><MdCorporateFare size={11} /> {booking.clubName || "—"}</span>
                   {booking.faculty && booking.faculty !== "Pending Faculty" && (
                     <span className="ml-2 text-brand-400">· {booking.faculty}</span>
                   )}
                 </p>
-
-                {/* Slot details block */}
+                {}
                 <div className="rounded-xl bg-gray-50 dark:bg-navy-900/60 border border-gray-100 dark:border-navy-700 p-3 space-y-1.5 mb-3">
                   <p className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-1">Booking Slot</p>
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-navy-700 dark:text-gray-200">
@@ -248,8 +235,7 @@ export default function StudentBookings() {
                     <span>{fmtTime(booking.startTime)} – {fmtTime(booking.endTime)}</span>
                   </div>
                 </div>
-
-                {/* Tracker mini-dots */}
+                {}
                 <div className="flex items-center gap-1.5 mb-3">
                   {trackerStages.map(({ key, label }) => (
                     <div key={key} className="flex-1 flex flex-col items-center gap-0.5">
@@ -258,8 +244,7 @@ export default function StudentBookings() {
                     </div>
                   ))}
                 </div>
-
-                {/* Hover CTA */}
+                {}
                 <div className="pt-2.5 border-t border-dashed border-gray-100 dark:border-navy-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex justify-between items-center text-xs font-bold text-brand-500">
                   View Details <MdOutlineArrowForward size={14} />
                 </div>
@@ -267,8 +252,7 @@ export default function StudentBookings() {
             </div>
           );
         })}
-
-        {/* Empty state */}
+        {}
         {displayed.length === 0 && (
           <div className="col-span-full py-16 flex flex-col items-center justify-center rounded-[20px] border-2 border-dashed border-gray-200 dark:border-navy-700">
             <div className="p-4 rounded-full bg-gray-100 dark:bg-navy-700 mb-4">
@@ -282,17 +266,15 @@ export default function StudentBookings() {
           </div>
         )}
       </div>
-
-      {/* ━━━━━ DRAWER ━━━━━ */}
+      {}
       <div
         className={`fixed inset-0 z-[100] bg-navy-900/60 backdrop-blur-sm transition-opacity duration-500 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setIsOpen(false)}
       />
-
       <div className={`fixed right-0 top-0 z-[101] h-full w-full max-w-md bg-white shadow-2xl transition-all duration-500 ease-out dark:bg-navy-800 ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
         {selectedBooking && (
           <>
-            {/* Drawer header */}
+            {}
             <div className="flex items-start justify-between p-6 border-b border-gray-100 dark:border-navy-700 bg-gradient-to-r from-brand-500/8 to-indigo-500/8">
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
@@ -308,8 +290,7 @@ export default function StudentBookings() {
                 <MdClose className="h-5 w-5" />
               </button>
             </div>
-
-            {/* Tabs */}
+            {}
             <div className="flex border-b border-gray-100 px-6 dark:border-navy-700">
               {["Details", "Tracker", "E-Ticket"].map(tab => (
                 <button
@@ -321,11 +302,9 @@ export default function StudentBookings() {
                 </button>
               ))}
             </div>
-
-            {/* Tab bodies */}
+            {}
             <div className="p-6 h-[calc(100vh-165px)] overflow-y-auto space-y-4">
-
-              {/* ─ DETAILS ─ */}
+              {}
               {activeTab === "Details" && (
                 <div className="flex flex-col gap-4">
                   <div className="rounded-2xl bg-gray-50 p-4 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
@@ -338,7 +317,6 @@ export default function StudentBookings() {
                       <div className="col-span-2"><p className="text-[10px] font-bold uppercase text-gray-400">Mobile</p><p className="font-bold text-navy-700 dark:text-white mt-0.5 text-sm">{selectedBooking.mobile}</p></div>
                     </div>
                   </div>
-
                   <div className="rounded-2xl bg-gray-50 p-4 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
                     <h3 className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                       <MdEvent size={12} /> Event Logistics
@@ -350,7 +328,6 @@ export default function StudentBookings() {
                       <div className="col-span-2"><p className="text-[10px] font-bold uppercase text-gray-400">Purpose</p><p className="font-medium text-navy-700 dark:text-gray-300 text-sm mt-0.5">{selectedBooking.purpose || "—"}</p></div>
                     </div>
                   </div>
-
                   <div className="rounded-2xl bg-gray-50 p-4 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
                     <h3 className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                       <MdLocationOn size={12} /> Venue & Schedule
@@ -363,7 +340,6 @@ export default function StudentBookings() {
                       <div><p className="text-[10px] font-bold uppercase text-gray-400">End</p><p className="font-bold text-navy-700 dark:text-white mt-0.5 text-sm">{fmtTime(selectedBooking.endTime)}</p></div>
                     </div>
                   </div>
-
                   {selectedBooking.priorities?.length > 1 && (
                     <div className="rounded-2xl bg-gray-50 p-4 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
                       <h3 className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
@@ -393,13 +369,12 @@ export default function StudentBookings() {
                   )}
                 </div>
               )}
-
-              {/* ─ TRACKER ─ */}
+              {}
               {activeTab === "Tracker" && (
                 <div className="relative pl-4 pt-2 pb-10">
                   <div className="absolute left-[23px] top-6 bottom-4 border-l-2 border-dashed border-brand-300/40 dark:border-brand-500/20" />
                   <div className="flex flex-col gap-7">
-                    {/* Student (always done) */}
+                    {}
                     <div className="relative flex items-start gap-4">
                       <div className="z-10 mt-1 h-4 w-4 rounded-full border-4 border-white dark:border-navy-800 bg-green-500 shadow-[0_0_0_3px_rgba(34,197,94,0.2)]" />
                       <div className="w-full">
@@ -409,8 +384,7 @@ export default function StudentBookings() {
                         </div>
                       </div>
                     </div>
-
-                    {/* Dynamic stages */}
+                    {}
                     {trackerStages.map(({ key, label }) => {
                       const s = selectedBooking.tracker[key];
                       const dotColor = s === "approved" ? "bg-green-500 shadow-[0_0_0_3px_rgba(34,197,94,0.2)]"
@@ -429,47 +403,42 @@ export default function StudentBookings() {
                                 {badgeLabel[s] || "Pending"}
                               </span>
                             </div>
-                            {/* Action Required re-submit form */}
+                            {}
                             {key === "faculty" && s === "changes_requested" && (
                               <div className="mt-4 rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 p-5 border-2 border-orange-200 dark:bg-gradient-to-br dark:from-orange-500/10 dark:to-amber-500/5 dark:border-orange-500/30 shadow-lg shadow-orange-500/10">
-                                {/* Header */}
+                                {}
                                 <div className="flex items-center gap-2 mb-4">
                                   <div className="h-3 w-3 rounded-full bg-orange-500 animate-pulse" />
                                   <p className="text-[11px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400">Faculty Suggested Alternatives</p>
                                 </div>
-
-                                {/* Faculty Comment */}
+                                {}
                                 {selectedBooking.comments?.facultyComment && (
                                   <div className="mb-4 rounded-xl bg-white/60 dark:bg-navy-800/60 p-3 border border-orange-100 dark:border-orange-500/20">
                                     <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5">Faculty Note:</p>
                                     <p className="text-sm font-medium text-navy-700 dark:text-gray-200 italic">"{selectedBooking.comments.facultyComment}"</p>
                                   </div>
                                 )}
-
                                 {selectedBooking.comments?.jrAssistantComment && (
                                   <div className="mb-4 rounded-xl bg-red-50 dark:bg-red-500/10 p-3 border border-red-100 dark:border-red-500/20">
                                     <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1.5">JR Assistant Remark:</p>
                                     <p className="text-sm font-medium text-navy-700 dark:text-gray-200 italic">"{selectedBooking.comments.jrAssistantComment}"</p>
                                   </div>
                                 )}
-
-                                {/* Proposed Options */}
+                                {}
                                 {selectedBooking.proposedChanges && selectedBooking.proposedChanges.length > 0 ? (
                                   <div className="space-y-3">
                                     <p className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                                       <MdCalendarMonth size={13} className="text-orange-500" />
                                       Pick a Date & Time:
                                     </p>
-
-                                    {/* Date Cards */}
+                                    {}
                                     <div className="grid gap-3">
                                       {selectedBooking.proposedChanges.map((proposal, idx) => {
                                         const proposalDate = new Date(proposal.date);
                                         const dayName = proposalDate.toLocaleDateString("en-US", { weekday: "short" });
-                                        
                                         return (
                                           <div key={idx} className="rounded-xl bg-white dark:bg-navy-800 border-2 border-gray-200 dark:border-navy-600 overflow-hidden hover:shadow-md transition-all">
-                                            {/* Date Header */}
+                                            {}
                                             <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-navy-700 dark:to-navy-600 px-4 py-3 flex items-center justify-between">
                                               <div className="flex items-center gap-3">
                                                 <div className="rounded-lg bg-brand-500/10 dark:bg-brand-500/20 px-3 py-2 text-center">
@@ -483,20 +452,18 @@ export default function StudentBookings() {
                                                 </span>
                                               )}
                                             </div>
-
-                                            {/* Time Slots - Custom Selection */}
+                                            {}
                                             <div className="px-4 py-3">
                                               {proposal.timeSlots && proposal.timeSlots.length > 0 ? (
                                                 <div className="space-y-3">
-                                                  {/* Available time range */}
+                                                  {}
                                                   <div className="rounded-lg bg-blue-50 dark:bg-blue-500/10 p-3 border border-blue-200 dark:border-blue-500/20">
                                                     <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1.5">Available Time Range</p>
                                                     <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
                                                       {fmtTime(proposal.timeSlots[0].startTime)} — {fmtTime(proposal.timeSlots[proposal.timeSlots.length - 1].endTime)}
                                                     </p>
                                                   </div>
-
-                                                  {/* Custom time input */}
+                                                  {}
                                                   {newDate === proposal.date && (
                                                     <div className="space-y-2">
                                                       <p className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Select Your Time</p>
@@ -520,18 +487,16 @@ export default function StudentBookings() {
                                                           />
                                                         </div>
                                                       </div>
-                                                      {/* Validation message */}
+                                                      {}
                                                       {newStartTime && newEndTime && (
                                                         (() => {
                                                           const [startH, startM] = newStartTime.split(":").map(Number);
                                                           const [endH, endM] = newEndTime.split(":").map(Number);
                                                           const rangeStart = proposal.timeSlots[0].startTime.split(":").map(Number);
                                                           const rangeEnd = proposal.timeSlots[proposal.timeSlots.length - 1].endTime.split(":").map(Number);
-                                                          
                                                           const isValid = (startH > rangeStart[0] || (startH === rangeStart[0] && startM >= rangeStart[1])) &&
                                                                          (endH < rangeEnd[0] || (endH === rangeEnd[0] && endM <= rangeEnd[1])) &&
                                                                          (startH < endH || (startH === endH && startM < endM));
-                                                          
                                                           return (
                                                             <p className={`text-[10px] font-bold mt-2 ${isValid ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                                                               {isValid ? "✓ Valid time slot" : "⚠ Time outside available range or invalid duration"}
@@ -541,8 +506,7 @@ export default function StudentBookings() {
                                                       )}
                                                     </div>
                                                   )}
-
-                                                  {/* Quick select buttons */}
+                                                  {}
                                                   <div className="space-y-1.5">
                                                     <p className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Or pick a suggested slot:</p>
                                                     <div className="flex flex-wrap gap-2">
@@ -582,8 +546,7 @@ export default function StudentBookings() {
                                         );
                                       })}
                                     </div>
-
-                                    {/* Resubmit Button */}
+                                    {}
                                     {newDate && newStartTime && newEndTime && (
                                       <div className="mt-4 p-3 rounded-lg bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20">
                                         <p className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-widest mb-2">✓ Selection Confirmed</p>
@@ -600,8 +563,7 @@ export default function StudentBookings() {
                                     </p>
                                   </div>
                                 )}
-
-                                {/* Action Button */}
+                                {}
                                 <button 
                                   onClick={handleResubmit}
                                   disabled={!newDate || !newStartTime || !newEndTime}
@@ -623,8 +585,7 @@ export default function StudentBookings() {
                   </div>
                 </div>
               )}
-
-              {/* ─ E-TICKET ─ */}
+              {}
               {activeTab === "E-Ticket" && (
                 <div className="py-2">
                   {selectedBooking.status === "Approved" ? (

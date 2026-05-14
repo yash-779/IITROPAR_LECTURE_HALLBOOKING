@@ -16,5 +16,4 @@ const NotificationIcon = () => {
     </span>
   );
 };
-
 export default NotificationIcon;

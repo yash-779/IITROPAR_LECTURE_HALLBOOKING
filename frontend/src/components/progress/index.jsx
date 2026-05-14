@@ -43,5 +43,4 @@ const Progress = (props) => {
     </div>
   );
 };
-
 export default Progress;

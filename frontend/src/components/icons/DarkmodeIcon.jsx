@@ -16,5 +16,4 @@ const DarkmodeIcon = () => {
     </span>
   );
 };
-
 export default DarkmodeIcon;

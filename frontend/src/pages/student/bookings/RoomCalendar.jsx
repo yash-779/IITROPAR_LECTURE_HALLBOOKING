@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { fetchAllBookings } from "../../../services/api"; 
-// Notice MdPerson is now correctly imported here!
 import { MdCalendarMonth, MdAccessTime, MdClose, MdSchool, MdEvent, MdLocationCity, MdPerson } from "react-icons/md";
-import courseData from "../../../variables/courseData"; // Your JS array
-
-// --- COMPREHENSIVE VENUE DATA WITH BLOCK-BASED GRADIENTS ---
+import courseData from "../../../variables/courseData"; 
 const rawVenues = [
   { id: "m1", title: "M1", capacity: 50, type: "Classroom", block: "Radhakrishnan Block" },
   { id: "m2", title: "M2", capacity: 50, type: "Classroom", block: "Radhakrishnan Block" },
@@ -13,24 +10,19 @@ const rawVenues = [
   { id: "m5", title: "M5", capacity: 195, type: "Classroom", block: "Radhakrishnan Block" },
   { id: "m6", title: "M6", capacity: 180, type: "Classroom", block: "Radhakrishnan Block" },
   { id: "audi", title: "Auditorium", capacity: 500, type: "Major Events", block: "Radhakrishnan Block" },
-  
   { id: "cs1", title: "CS1", capacity: 60, type: "Classroom", block: "S. Ramanujan Block" },
   { id: "cs2", title: "CS2", capacity: 40, type: "Classroom", block: "S. Ramanujan Block" },
   { id: "cssh", title: "CS(SH)", capacity: 90, type: "Seminar Hall", block: "S. Ramanujan Block" },
-  
   { id: "ee1", title: "EE1", capacity: 65, type: "Classroom", block: "J. C. Bose Block" },
   { id: "ee2", title: "EE2", capacity: 35, type: "Classroom", block: "J. C. Bose Block" },
   { id: "ee3", title: "EE3", capacity: 60, type: "Classroom", block: "J. C. Bose Block" },
   { id: "eesh", title: "EE(SH)", capacity: 80, type: "Seminar Hall", block: "J. C. Bose Block" },
-  
   { id: "me1", title: "ME1", capacity: 70, type: "Classroom", block: "Satish Dhawan Block" },
   { id: "me2", title: "ME2", capacity: 35, type: "Classroom", block: "Satish Dhawan Block" },
   { id: "mesh", title: "ME(SH)", capacity: 90, type: "Seminar Hall", block: "Satish Dhawan Block" },
-  
   { id: "cy1", title: "CY1", capacity: 35, type: "Classroom", block: "S. Bhatnagar Block" },
   { id: "cy2", title: "CY2", capacity: 30, type: "Classroom", block: "S. Bhatnagar Block" },
   { id: "cysh", title: "CY(SH)", capacity: 90, type: "Seminar Hall", block: "S. Bhatnagar Block" },
-  
   { id: "s001", title: "S-001", capacity: 72, type: "Classroom", block: "Super Academic Block" },
   { id: "s002", title: "S-002", capacity: 72, type: "Classroom", block: "Super Academic Block" },
   { id: "s003", title: "S-003", capacity: 72, type: "Classroom", block: "Super Academic Block" },
@@ -41,7 +33,6 @@ const rawVenues = [
   { id: "s106", title: "S-106", capacity: 72, type: "Classroom", block: "Super Academic Block" },
   { id: "s107", title: "S-107", capacity: 72, type: "Classroom", block: "Super Academic Block" },
 ];
-
 const blockGradients = {
   "Radhakrishnan Block": "from-blue-500 to-cyan-400",
   "S. Ramanujan Block": "from-purple-500 to-indigo-500",
@@ -50,19 +41,14 @@ const blockGradients = {
   "S. Bhatnagar Block": "from-emerald-400 to-teal-500",
   "Super Academic Block": "from-pink-500 to-rose-500"
 };
-
 const venuesData = rawVenues.map(v => ({ ...v, gradient: blockGradients[v.block] || "from-gray-400 to-gray-600" }));
 const blockNames = [...new Set(venuesData.map(v => v.block))];
-
 export default function RoomCalendar() {
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [allLiveBookings, setAllLiveBookings] = useState([]);
-  
   const [filterDate, setFilterDate] = useState("");
   const [filterBlock, setFilterBlock] = useState("all");
   const [modalDate, setModalDate] = useState("");
-
-  // --- FETCH LIVE BOOKINGS ON MOUNT ---
   useEffect(() => {
     const getBookings = async () => {
       try {
@@ -75,40 +61,29 @@ export default function RoomCalendar() {
     };
     getBookings();
   }, []);
-
   const handleOpenTimeline = (venue) => {
     setSelectedVenue(venue);
-    setModalDate(filterDate || new Date().toISOString().split('T')[0]); // Default to today
+    setModalDate(filterDate || new Date().toISOString().split('T')[0]); 
   };
-
   const displayedVenues = venuesData.filter((v) => filterBlock === "all" || v.block === filterBlock);
-
-  // --- ULTRA-SAFE VENUE MATCHER ---
   const checkVenueMatch = (courseVenue, uiVenueTitle, uiVenueId) => {
     if (!courseVenue) return false;
     const normalize = (str) => str.replace(/[^a-zA-Z0-9]/g, '').toUpperCase(); 
     const cv = normalize(courseVenue);
     const ut = normalize(uiVenueTitle);
     const ui = normalize(uiVenueId);
-    
     if (cv === ut || cv === ui) return true;
     if (cv === 'AUDI' && ut === 'AUDITORIUM') return true; 
     return false;
   };
-
-  // --- THE MERGE ENGINE (DB Bookings + Static Courses) ---
   const generateTimeline = () => {
     if (!selectedVenue || !modalDate) return [];
-
     const timeline = [];
     const dateObj = new Date(modalDate);
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayOfWeek = days[dateObj.getDay()];
-
-    // 1. Get Static Classes for this Venue & Day
     courseData.forEach(course => {
       if (!course || !course.venue) return; 
-
       if (checkVenueMatch(course.venue, selectedVenue.title, selectedVenue.id)) {
         if (course.schedule && Array.isArray(course.schedule)) {
           course.schedule.forEach(slot => {
@@ -116,7 +91,7 @@ export default function RoomCalendar() {
               timeline.push({
                 title: `${course.code} Class`,
                 time: slot.time, 
-                startTime: slot.time.split(" - ")[0], // For sorting
+                startTime: slot.time.split(" - ")[0], 
                 type: "Academic Course",
                 isClass: true,
                 isPending: false
@@ -126,43 +101,39 @@ export default function RoomCalendar() {
         }
       }
     });
-
-    // 2. Get Live Bookings for this Venue & Date
     allLiveBookings.forEach(booking => {
-      const slot = booking.allocatedSlot || (booking.priorities && booking.priorities[0]);
-      if (!slot || slot.venueName !== selectedVenue.title || slot.date !== modalDate) return;
-      
-      // Check if booking is pending approval at any stage
-      const isPending = booking.status === 'Pending' || booking.status === 'Action Required' || booking.tracker?.ar === 'pending';
-      
+      let slot = null;
+      if (booking.allocatedSlot && booking.allocatedSlot.date) {
+         slot = booking.allocatedSlot;
+      } else if (booking.priorities) {
+         slot = booking.priorities.find(p => checkVenueMatch(p.venueName, selectedVenue.title, p.venueId) && p.date === modalDate);
+      }
+      if (!slot || !checkVenueMatch(slot.venueName, selectedVenue.title, slot.venueId) || slot.date !== modalDate) return;
+      const isPending = booking.status !== "Approved" || booking.tracker?.ar !== 'approved';
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (modalDate < todayStr && booking.status !== "Approved") return;
       timeline.push({
         title: booking.activityType || "Event",
         time: `${slot.startTime} - ${slot.endTime}`,
-        startTime: slot.startTime, // For sorting
+        startTime: slot.startTime, 
         type: booking.clubName || "Custom Booking",
         isClass: false,
         isPending: isPending,
         status: booking.status
       });
     });
-
-    // 3. Sort Chronologically by start time
     return timeline.sort((a, b) => a.startTime.localeCompare(b.startTime));
   };
-
   const currentTimeline = generateTimeline();
-  
   const selectedDayName = modalDate ? ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(modalDate).getDay()] : "";
-
   return (
     <div className="mt-3 w-full relative">
-      {/* HEADER & FILTERS */}
+      {}
       <div className="mb-6 flex flex-col items-center justify-between rounded-[20px] bg-white p-6 shadow-3xl shadow-shadow-500 dark:!bg-navy-800 dark:shadow-none md:flex-row">
         <div>
           <h2 className="text-2xl font-bold text-navy-700 dark:text-white">Venue Matrix</h2>
           <p className="text-sm text-gray-500">View daily academic schedules and live club bookings.</p>
         </div>
-        
         <div className="mt-4 flex flex-wrap gap-3 md:mt-0">
           <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 dark:!bg-navy-700 dark:border-none">
             <MdCalendarMonth className="text-brand-500" />
@@ -176,7 +147,6 @@ export default function RoomCalendar() {
               className="text-sm font-bold text-navy-700 outline-none bg-transparent dark:text-white" 
             />
           </div>
-          
           <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 dark:!bg-navy-700 dark:border-none">
             <MdLocationCity className="text-brand-500" />
             <select 
@@ -190,8 +160,7 @@ export default function RoomCalendar() {
           </div>
         </div>
       </div>
-
-      {/* VENUE GRID */}
+      {}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {displayedVenues.map((venue) => (
           <div key={venue.id} className="group relative overflow-hidden rounded-[20px] bg-white shadow-sm border border-gray-100 transition-all hover:-translate-y-1 hover:shadow-xl dark:!bg-navy-800 dark:border-navy-700">
@@ -220,8 +189,7 @@ export default function RoomCalendar() {
           </div>
         ))}
       </div>
-
-      {/* DYNAMIC TIMELINE MODAL */}
+      {}
       <div 
         className={`fixed inset-0 z-[100] flex items-center justify-center bg-navy-900/70 p-4 backdrop-blur-sm transition-opacity duration-300 ${selectedVenue ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={() => setSelectedVenue(null)}
@@ -236,7 +204,6 @@ export default function RoomCalendar() {
              </button>
              <p className="text-[10px] font-black tracking-widest text-white/80 uppercase mb-1">{selectedVenue?.block}</p>
              <h2 className="text-4xl font-black">{selectedVenue?.title}</h2>
-             
              <div className="mt-4 flex items-center gap-3">
                <input 
                  type="date" 
@@ -249,7 +216,6 @@ export default function RoomCalendar() {
                </span>
              </div>
           </div>
-
           <div className="p-6 h-[400px] overflow-y-auto bg-gray-50 dark:bg-navy-900 custom-scrollbar">
             {!modalDate ? (
                <div className="flex h-full flex-col items-center justify-center text-gray-400">
@@ -267,40 +233,34 @@ export default function RoomCalendar() {
             ) : (
               <div className="relative border-l-2 border-gray-200 ml-4 dark:border-navy-700">
                 {currentTimeline.map((event, index) => {
-                  // Determine colors based on event type and status
                   let dotColor = "bg-brand-500";
                   let borderColor = "border-gray-100 dark:border-navy-700";
                   let bgColor = "bg-white dark:bg-navy-800";
                   let textAccentColor = "text-brand-500";
                   let typeColor = "text-brand-500";
                   let iconBgColor = "text-brand-500";
-                  
                   if (event.isClass) {
                     dotColor = "bg-orange-500";
                     textAccentColor = "text-orange-500";
                     borderColor = "border-orange-100 dark:border-orange-500/20";
                     bgColor = "bg-orange-50/50 dark:bg-orange-950/30";
                   } else if (event.isPending) {
-                    // Pending booking - amber/orange color
                     dotColor = "bg-amber-500";
                     textAccentColor = "text-amber-500";
                     borderColor = "border-amber-100 dark:border-amber-500/20";
                     bgColor = "bg-amber-50/50 dark:bg-amber-950/30";
                     typeColor = "text-amber-600 dark:text-amber-400";
                   } else {
-                    // Approved booking - green color
                     dotColor = "bg-emerald-500";
                     textAccentColor = "text-emerald-500";
                     borderColor = "border-emerald-100 dark:border-emerald-500/20";
                     bgColor = "bg-emerald-50/50 dark:bg-emerald-950/30";
                     typeColor = "text-emerald-600 dark:text-emerald-400";
                   }
-
                   return (
                     <div key={index} className="mb-8 pl-6 relative animate-fade-in">
-                      {/* Color-coded dot */}
+                      {}
                       <div className={`absolute -left-[11px] top-1 h-5 w-5 rounded-full border-[5px] border-gray-50 dark:border-navy-900 ${dotColor}`}></div>
-                      
                       <p className={`text-xs font-bold flex items-center gap-1 mb-2 ${textAccentColor}`}>
                         <MdAccessTime className="h-4 w-4" /> {event.time}
                       </p>
@@ -322,7 +282,6 @@ export default function RoomCalendar() {
               </div>
             )}
           </div>
-          
           <div className="border-t border-gray-200 bg-white p-4 dark:border-navy-700 dark:bg-navy-800 flex justify-end">
              <button 
                onClick={() => window.location.href = '/admin/book-room'}

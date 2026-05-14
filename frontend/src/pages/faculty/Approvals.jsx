@@ -6,7 +6,7 @@ import {
   submitBookingRequest,
   fetchBookingsByVenueDate
 } from "../../services/api";
-import { VENUES } from "../../variables/mockData";
+import { VENUES } from "../../variables/constants";
 import courseData from "../../variables/courseData";
 import {
   MdCheckCircle, MdCancel, MdEdit, MdOutlineLibraryAddCheck,
@@ -14,8 +14,6 @@ import {
   MdSend, MdOutlineArrowForward, MdCorporateFare, MdQrCode2,
   MdPendingActions, MdPerson, MdUpdate, MdFilterList, MdInfoOutline, MdRefresh, MdEvent
 } from "react-icons/md";
-
-// ── Suggestion lists ─────────────────────────────────────────────
 const CLUB_OPTIONS = [
   "Board of Hostel Affairs", "Board of Sports Affairs", "Board of Science and Technology",
   "Board of Cultural Activities", "Board of Literary Activities", "Board of Academic Affairs",
@@ -24,22 +22,18 @@ const CLUB_OPTIONS = [
 const ACTIVITY_OPTIONS = [
   "Guest Lecture", "Lecture", "Examination", "Quiz", "Club Activity", "Workshop", "Seminar", "Other"
 ];
-
-// ── Status helpers ───────────────────────────────────────────────
 const sConfig = (s) => {
   if (s === "Approved")        return { bg: "bg-green-500/15",  color: "text-green-400",  border: "border-l-green-500",  shadow: "hover:shadow-green-500/10",  dot: "bg-green-500" };
   if (s === "Action Required") return { bg: "bg-orange-500/15", color: "text-orange-400", border: "border-l-orange-500", shadow: "hover:shadow-orange-500/10", dot: "bg-orange-400", pulse: true };
   if (s === "Rejected")        return { bg: "bg-red-500/15",    color: "text-red-400",    border: "border-l-red-500",    shadow: "hover:shadow-red-500/10",    dot: "bg-red-500" };
   return                            { bg: "bg-amber-500/15",  color: "text-amber-400",  border: "border-l-amber-400",  shadow: "hover:shadow-amber-500/10",  dot: "bg-amber-400", pulse: true };
 };
-
 const fmtDate = (d) => {
   if (!d) return "—";
   const parsed = new Date(d);
   return isNaN(parsed) ? d : parsed.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 };
 const fmtTime = (t) => { if (!t) return "—"; const [h, m] = t.split(":"); const hr = parseInt(h, 10); return `${hr % 12 || 12}:${m} ${hr >= 12 ? "PM" : "AM"}`; };
-
 const WorkflowBar = ({ tracker = {} }) => {
   const stages = [
     { key: "faculty", label: "Faculty" },
@@ -66,17 +60,16 @@ const WorkflowBar = ({ tracker = {} }) => {
     </div>
   );
 };
-
 export default function Approvals() {
   const [activeType,   setActiveType]   = useState("incoming");
-  const [incoming,     setIncoming]     = useState([]);   // bookings where I'm facultyInCharge
-  const [myRequests,   setMyRequests]   = useState([]);   // bookings I submitted as requester
+  const [incoming,     setIncoming]     = useState([]);   
+  const [myRequests,   setMyRequests]   = useState([]);   
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
   const [filterVenue,  setFilterVenue]  = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterDate,   setFilterDate]   = useState("");
   const [selected,     setSelected]     = useState([]);
-
   const [reviewTarget,       setReviewTarget]       = useState(null);
   const [isReviewOpen,       setIsReviewOpen]       = useState(false);
   const [detailTarget,       setDetailTarget]       = useState(null);
@@ -89,26 +82,21 @@ export default function Approvals() {
   const [newDate,            setNewDate]             = useState("");
   const [newStartTime,       setNewStartTime]        = useState("");
   const [newEndTime,         setNewEndTime]           = useState("");
-  // -- Manage Booking extra state --
   const [selectedPriorityIdx, setSelectedPriorityIdx] = useState(0);
   const [remarksScope,       setRemarksScope]       = useState(["Student", "JrAssistant"]);
   const [proposedOptions,    setProposedOptions]    = useState([]);
   const [activeDateIndex,    setActiveDateIndex]    = useState(0);
   const [selectedProposalIndices, setSelectedProposalIndices] = useState([]);
-
   const [newReq, setNewReq] = useState({
     club: "", clubOther: "", activity: "", activityOther: "",
     purpose: "", date: "", startTime: "", endTime: "", email: ""
   });
-
-  // ── Read logged-in user ──────────────────────────────────────
   const [user] = useState(() => {
     try { return JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}"); }
     catch { return {}; }
   });
   const facultyName = (user.name || "").toLowerCase();
   const facultyId = user._id || user.id;
-
   const load = async () => {
     if (!facultyId) return;
     setLoading(true);
@@ -122,7 +110,11 @@ export default function Approvals() {
         id: b._id,
         tracker: b.tracker || { faculty: "pending", jrAssistant: "pending", superintendent: "pending", ar: "pending" },
         studentName: b.requester?.name || "Student",
+        entryNo:     b.requester?.entryNo || "—",
+        email:       b.requester?.email || "—",
+        department:  b.requester?.department || "—",
         facultyName: b.facultyInCharge?.name || "—",
+        facultyEmail: b.facultyInCharge?.email || "—",
         slot: b.allocatedSlot || (b.priorities && b.priorities[0]) || {}
       }));
       setIncoming(norm(inc));
@@ -135,23 +127,18 @@ export default function Approvals() {
       setLoading(false);
     }
   };
-
   useEffect(() => { load(); }, [facultyId]);
-
   const trackerStages = [
     { key: "faculty", label: "Faculty" },
     { key: "jrAssistant", label: "JR Assistant" },
     { key: "superintendent", label: "Superintendent" },
     { key: "ar", label: "AR" },
   ];
-
   const parseTimeValue = (time) => {
     if (!time) return 0;
     const [h, m] = time.split(":").map(Number);
     return h + (m || 0) / 60;
   };
-
-  // Normalize venue names for matching courseData venues
   const normalizeVenue = (str) => (str || "").replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   const checkVenueMatch = (v1, v2) => {
     if (!v1 || !v2) return false;
@@ -160,20 +147,15 @@ export default function Approvals() {
     if ((a === 'AUDI' && b === 'AUDITORIUM') || (b === 'AUDI' && a === 'AUDITORIUM')) return true;
     return false;
   };
-
   const getFacultyMySchedule = (date, currentId) => {
     if (!date) return [];
     const dayName = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date(date + "T00:00:00").getDay()];
     const events = [];
     const enrolledMap = new Set(user?.enrolledCourses || []);
-
-    // 1. Add all bookings on the same date intended for this faculty
     incoming.forEach(b => {
       const isCurrent = b.id === currentId;
-      // Get the correct priority date if multiple. Fallback to slot.date
       const activePriority = isCurrent && b.priorities ? b.priorities[selectedPriorityIdx] : (b.priorities?.[0] || b.slot || {});
       const d = isCurrent && decision === 'modify' && proposedOptions[activeDateIndex]?.date ? proposedOptions[activeDateIndex].date : activePriority.date;
-      
       if (d === date) {
         events.push({
           id: b.id,
@@ -190,8 +172,6 @@ export default function Approvals() {
         });
       }
     });
-
-    // 2. Add ALL courses the faculty is enrolled in
     courseData.forEach(course => {
       if (!course || !course.venue) return;
       if (enrolledMap.has(course.code)) {
@@ -215,37 +195,28 @@ export default function Approvals() {
         });
       }
     });
-
     return events.sort((a, b) => a.sort - b.sort);
   };
-
   const computeFreeTimeSlots = async (dateStr, currentId, venueId, minDurationMinutes = 60) => {
-    const startOfDay = 8 * 60; // 08:00
-    const endOfDay = 23 * 60;  // 23:00
-
-    // Get faculty's schedule
+    const startOfDay = 8 * 60; 
+    const endOfDay = 23 * 60;  
     const facultyOccupied = getFacultyMySchedule(dateStr, currentId)
        .filter(evt => evt.startRaw && evt.endRaw && !evt.current)
        .map(evt => ({
-          start: parseTimeValue(evt.startRaw) * 60, // Convert hours to minutes
+          start: parseTimeValue(evt.startRaw) * 60, 
           end: parseTimeValue(evt.endRaw) * 60
        }));
-
-    // Get existing bookings on this venue for this date
     let venueBookings = [];
     if (venueId) {
       try {
         venueBookings = await fetchBookingsByVenueDate(venueId, dateStr);
-        // Exclude the current booking being reviewed
         venueBookings = venueBookings.filter(b => b._id !== currentId);
       } catch (error) {
         console.error("Error fetching venue bookings:", error);
       }
     }
-
     const venueOccupied = venueBookings
       .map(booking => {
-        // Use allocatedSlot if approved, otherwise use priorities
         const slot = booking.allocatedSlot || (booking.priorities && booking.priorities[0]);
         if (slot && slot.startTime && slot.endTime) {
           return {
@@ -256,11 +227,8 @@ export default function Approvals() {
         return null;
       })
       .filter(Boolean);
-
-    // Combine faculty schedule and venue bookings
     const occupied = [...facultyOccupied, ...venueOccupied]
        .sort((a, b) => a.start - b.start);
-    
     const merged = [];
     occupied.forEach(occ => {
        if (merged.length === 0) { merged.push(occ); }
@@ -273,10 +241,8 @@ export default function Approvals() {
           }
        }
     });
-
     const freeSlots = [];
     let currentFreeStart = startOfDay;
-    
     merged.forEach(occ => {
        if (occ.start > currentFreeStart) {
           const duration = occ.start - currentFreeStart;
@@ -286,27 +252,22 @@ export default function Approvals() {
        }
        currentFreeStart = Math.max(currentFreeStart, occ.end);
     });
-    
-    // Handle the end of day
     if (endOfDay > currentFreeStart) {
        const duration = endOfDay - currentFreeStart;
        if (duration >= minDurationMinutes) {
           freeSlots.push({ start: currentFreeStart, end: endOfDay });
        }
     }
-
     const fmtFromMins = (mins) => {
         const h = Math.floor(mins / 60);
         const m = mins % 60;
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     };
-
     return freeSlots.map(fs => ({
         startTime: fmtFromMins(fs.start),
         endTime: fmtFromMins(fs.end)
     }));
   };
-
   const generateProposals = async (baseDateStr, currentId, venueId, minDurationMinutes) => {
     if (!baseDateStr) return [];
     let baseDate = new Date(baseDateStr);
@@ -315,41 +276,43 @@ export default function Approvals() {
       if (!isNaN(ts)) baseDate = new Date(ts);
       else return [];
     }
-
     const dMinus1 = new Date(baseDate); dMinus1.setDate(baseDate.getDate() - 1);
     const dPlus1 = new Date(baseDate); dPlus1.setDate(baseDate.getDate() + 1);
     const dPlus2 = new Date(baseDate); dPlus2.setDate(baseDate.getDate() + 2);
-
     const formatD = (d) => {
         const yr = d.getFullYear();
         const mo = (d.getMonth() + 1).toString().padStart(2, '0');
         const da = d.getDate().toString().padStart(2, '0');
         return `${yr}-${mo}-${da}`;
     };
-
     const slots1 = await computeFreeTimeSlots(formatD(dMinus1), currentId, venueId, minDurationMinutes);
     const slots2 = await computeFreeTimeSlots(formatD(dPlus1), currentId, venueId, minDurationMinutes);
     const slots3 = await computeFreeTimeSlots(formatD(dPlus2), currentId, venueId, minDurationMinutes);
-
     return [
       { id: Date.now() + 1, date: formatD(dMinus1), timeSlots: slots1 },
       { id: Date.now() + 2, date: formatD(dPlus1), timeSlots: slots2 },
       { id: Date.now() + 3, date: formatD(dPlus2), timeSlots: slots3 },
     ];
   };
-
-  // ── Display list based on active tab ─────────────────────────
   const pool = activeType === "incoming" ? incoming : myRequests;
+  const todayStr = new Date().toISOString().split('T')[0];
   const displayed = pool.filter(r => {
-    const ms = filterStatus === "all" || (r.status || "").toLowerCase() === filterStatus.toLowerCase();
-    return ms;
+    const bDate = r.slot?.date || r.date;
+    const isPastDate = bDate && bDate < todayStr;
+    if (filterDate) {
+      if (bDate !== filterDate) return false;
+      if (filterDate < todayStr && r.status !== "Approved") return false;
+    } else {
+      if (isPastDate) return false;
+    }
+    if (filterStatus === "approved" && r.status !== "Approved") return false;
+    if (filterStatus === "rejected" && r.status !== "Rejected") return false;
+    if (filterStatus === "pending" && (r.status === "Approved" || r.status === "Rejected")) return false;
+    return true;
   });
-
   const activeReviewPriority = reviewTarget?.priorities?.[selectedPriorityIdx] || reviewTarget?.slot || {};
   const activeTimelineDate = (decision === 'modify' && proposedOptions[activeDateIndex]?.date) ? proposedOptions[activeDateIndex].date : activeReviewPriority.date;
   const reviewFacultyEvents = reviewTarget ? getFacultyMySchedule(activeTimelineDate, reviewTarget.id) : [];
-
-  // ── Faculty decision ─────────────────────────────────────────
   const handleDecision = async () => {
     if (!decision) return;
     if (decision === 'modify' && selectedProposalIndices.length === 0) {
@@ -358,7 +321,6 @@ export default function Approvals() {
     setIsSaving(true);
     const actionMap = { approve: "approved", reject: "rejected", modify: "changes_requested" };
     try {
-      // Filter proposedOptions to only include selected ones
       const pChanges = decision === 'modify' ? proposedOptions.filter((_, idx) => selectedProposalIndices.includes(idx)) : null;
       await submitFacultyDecision(reviewTarget.id, actionMap[decision], remarks, pChanges, remarksScope);
       setIncoming(prev => prev.map(b => b.id === reviewTarget.id
@@ -372,21 +334,17 @@ export default function Approvals() {
       setIsSaving(false);
     }
   };
-
   const previewActivity = newReq.activity === "Other" ? (newReq.activityOther || "Activity Title") : (newReq.activity || "Activity Title");
   const previewClub    = newReq.club === "Other"     ? (newReq.clubOther    || "Club Name")      : (newReq.club    || "Club / Board");
-
   if (loading) return (
     <div className="mt-20 flex flex-col items-center justify-center gap-3 text-gray-400">
       <div className="h-8 w-8 rounded-full border-4 border-brand-500 border-t-transparent animate-spin" />
       <p className="text-sm font-bold">Loading bookings…</p>
     </div>
   );
-
   return (
     <div className="relative mt-5 w-full min-h-[85vh] rounded-[20px] dark:bg-gradient-to-br dark:from-navy-900 dark:to-navy-800 p-2 lg:p-4">
-
-      {/* ── TABS + FILTER ROW ─────────────────────────────────── */}
+      {}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 px-1">
         <div className="flex bg-gray-100/80 dark:bg-navy-800/60 backdrop-blur-md p-1 rounded-xl border border-gray-200 dark:border-navy-700/50">
           {[
@@ -401,24 +359,31 @@ export default function Approvals() {
             </button>
           ))}
         </div>
-
         <div className="flex flex-wrap items-center gap-2">
           <MdFilterList size={16} className="text-brand-500" />
+          <input
+            type="date" value={filterDate}
+            onChange={e => setFilterDate(e.target.value)}
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-brand-500 dark:bg-navy-800 dark:border-navy-700 dark:text-white"
+          />
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
             className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-brand-500 dark:bg-navy-800 dark:border-navy-700 dark:text-white">
             <option value="all">All Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Action Required">Action Required</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
           </select>
+          {(filterDate || filterStatus !== "all") && (
+            <button onClick={() => { setFilterDate(""); setFilterStatus("all"); }} className="rounded-xl px-3 py-2 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">
+              Clear
+            </button>
+          )}
           <button onClick={load} className="rounded-xl p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-700 transition-colors" title="Refresh">
             <MdRefresh size={18} />
           </button>
         </div>
       </div>
-
-      {/* ── BULK ACTION BAR ──────────────────────────────────── */}
+      {}
       <div className={`overflow-hidden transition-all duration-500 ${selected.length > 0 ? "h-16 opacity-100 mb-5" : "h-0 opacity-0"}`}>
         <div className="h-full flex items-center justify-between rounded-2xl bg-brand-500 px-6 text-white shadow-lg shadow-brand-500/30">
           <div className="flex items-center gap-2 font-bold text-sm"><MdOutlineLibraryAddCheck size={20} /> {selected.length} Selected</div>
@@ -428,8 +393,7 @@ export default function Approvals() {
           </div>
         </div>
       </div>
-
-      {/* ── CARDS GRID ───────────────────────────────────────── */}
+      {}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         {displayed.map(req => {
           const cfg = sConfig(req.status);
@@ -442,13 +406,12 @@ export default function Approvals() {
               {pendingFaculty && (
                 <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-brand-500 to-indigo-600 animate-pulse" />
               )}
-              {/* Multi-select */}
+              {}
               <div className="absolute top-4 right-4 z-10" onClick={e => { e.stopPropagation(); setSelected(prev => prev.includes(req.id) ? prev.filter(x => x !== req.id) : [...prev, req.id]); }}>
                 <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center transition-all cursor-pointer ${isSelected ? "bg-brand-500 border-brand-500" : "border-gray-300 dark:border-navy-600 hover:border-brand-400"}`}>
                   {isSelected && <MdCheckCircle size={13} className="text-white" />}
                 </div>
               </div>
-
               <div className="p-5 pr-10">
                 <div className="flex items-start gap-2 mb-1">
                   <h3 className="text-base font-bold tracking-wide text-navy-700 dark:text-white flex-1 truncate">{req.activityType}</h3>
@@ -456,11 +419,9 @@ export default function Approvals() {
                     {req.status || "Pending"}
                   </span>
                 </div>
-
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1">
                   <MdCorporateFare size={11} /> {req.clubName || "—"} · <span className="text-brand-400">{req.studentName}</span>
                 </p>
-
                 <div className="rounded-xl bg-gray-50 dark:bg-navy-900/60 border border-gray-100 dark:border-navy-700 p-3 space-y-1.5 mb-3">
                   <p className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-1">
                     {req.allocatedSlot ? "Allocated Slot" : "Requested Slot"}
@@ -474,9 +435,7 @@ export default function Approvals() {
                     <span className="flex items-center gap-1"><MdAccessTime size={11} /> {fmtTime(req.slot?.startTime)} – {fmtTime(req.slot?.endTime)}</span>
                   </div>
                 </div>
-
                 <WorkflowBar tracker={req.tracker} />
-
                 <div className="mt-4 pt-4 border-t border-dashed border-gray-100 dark:border-navy-700 flex flex-col gap-3">
                   <button type="button" onClick={(e) => { e.stopPropagation(); setDetailTarget(req); setDetailTab("Details"); setIsDetailOpen(true); setNewDate(req.slot?.date || ""); setNewStartTime(req.slot?.startTime || ""); setNewEndTime(req.slot?.endTime || ""); }}
                     className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-brand-500 hover:bg-brand-50 transition-all dark:border-navy-700 dark:bg-navy-900 dark:text-white">
@@ -491,7 +450,6 @@ export default function Approvals() {
             </div>
           );
         })}
-
         {displayed.length === 0 && (
           <div className="col-span-full py-16 flex flex-col items-center justify-center rounded-[20px] border-2 border-dashed border-gray-200 dark:border-navy-700">
             <MdCalendarMonth className="h-12 w-12 text-gray-300 mb-4" />
@@ -500,10 +458,7 @@ export default function Approvals() {
           </div>
         )}
       </div>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          DETAILS DRAWER
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {}
       <div className={`fixed inset-0 z-[100] bg-navy-900/60 backdrop-blur-sm transition-opacity duration-500 ${isDetailOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`} onClick={() => { setIsDetailOpen(false); setDetailTarget(null); }} />
       {detailTarget && (
         <div className={`fixed right-0 top-0 z-[101] h-full w-full max-w-md bg-white shadow-2xl transition-all duration-500 ease-out dark:bg-navy-800 ${isDetailOpen ? "translate-x-0" : "translate-x-full"}`}>
@@ -523,7 +478,6 @@ export default function Approvals() {
                 <MdClose className="h-5 w-5" />
               </button>
             </div>
-
             <div className="flex border-b border-gray-100 px-6 dark:border-navy-700">
               {["Details", "Tracker", "E-Ticket"].map(tab => (
                 <button
@@ -534,7 +488,6 @@ export default function Approvals() {
                 </button>
               ))}
             </div>
-
             <div className="p-6 h-[calc(100vh-165px)] overflow-y-auto space-y-4">
               {detailTab === "Details" && (
                 <div className="flex flex-col gap-4">
@@ -545,10 +498,10 @@ export default function Approvals() {
                     <div className="grid grid-cols-2 gap-3">
                       <div><p className="text-[10px] font-bold uppercase text-gray-400">Name</p><p className="font-bold text-navy-700 dark:text-white mt-0.5 text-sm">{detailTarget.studentName}</p></div>
                       <div><p className="text-[10px] font-bold uppercase text-gray-400">Entry No.</p><p className="font-bold text-navy-700 dark:text-white mt-0.5 text-sm">{detailTarget.entryNo}</p></div>
-                      <div className="col-span-2"><p className="text-[10px] font-bold uppercase text-gray-400">Mobile</p><p className="font-bold text-navy-700 dark:text-white mt-0.5 text-sm">{detailTarget.mobile}</p></div>
+                      <div><p className="text-[10px] font-bold uppercase text-gray-400">Department</p><p className="font-bold text-navy-700 dark:text-white mt-0.5 text-sm">{detailTarget.department}</p></div>
+                      <div className="col-span-2"><p className="text-[10px] font-bold uppercase text-gray-400">Email</p><p className="font-bold text-navy-700 dark:text-white mt-0.5 text-sm text-xs break-all">{detailTarget.email}</p></div>
                     </div>
                   </div>
-
                   <div className="rounded-2xl bg-gray-50 p-4 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
                     <h3 className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                       <MdEvent size={12} /> Event Logistics
@@ -560,7 +513,6 @@ export default function Approvals() {
                       <div className="col-span-2"><p className="text-[10px] font-bold uppercase text-gray-400">Purpose</p><p className="font-medium text-navy-700 dark:text-gray-300 text-sm mt-0.5">{detailTarget.purpose || "—"}</p></div>
                     </div>
                   </div>
-
                   <div className="rounded-2xl bg-gray-50 p-4 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
                     <h3 className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                       <MdLocationOn size={12} /> Venue & Schedule
@@ -573,7 +525,6 @@ export default function Approvals() {
                       <div><p className="text-[10px] font-bold uppercase text-gray-400">End</p><p className="font-bold text-navy-700 dark:text-white mt-0.5 text-sm">{fmtTime(detailTarget.slot?.endTime)}</p></div>
                     </div>
                   </div>
-
                   {detailTarget.priorities?.length > 1 && (
                     <div className="rounded-2xl bg-gray-50 p-4 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
                       <h3 className="text-[10px] font-black text-brand-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
@@ -603,7 +554,6 @@ export default function Approvals() {
                   )}
                 </div>
               )}
-
               {detailTab === "Tracker" && (
                 <div className="relative pl-4 pt-2 pb-10">
                   <div className="absolute left-[23px] top-6 bottom-4 border-l-2 border-dashed border-brand-300/40 dark:border-brand-500/20" />
@@ -662,7 +612,6 @@ export default function Approvals() {
                                 </div>
                               </div>
                             )}
-
                             {key === "jrAssistant" && detailTarget.tracker[key] === "rejected" && detailTarget.comments?.jrAssistantComment && (
                               <div className="mt-3 rounded-xl bg-red-50 p-4 border border-red-100 dark:bg-red-500/10 dark:border-red-500/20">
                                 <p className="text-[10px] font-black uppercase tracking-wider text-red-500 dark:text-red-400 mb-2 flex items-center gap-1">
@@ -678,7 +627,6 @@ export default function Approvals() {
                   </div>
                 </div>
               )}
-
               {detailTab === "E-Ticket" && (
                 <div className="py-2">
                   {detailTarget.status === "Approved" ? (
@@ -725,14 +673,10 @@ export default function Approvals() {
           </div>
         </div>
       )}
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          REVIEW MODAL
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {}
       <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-navy-900/70 backdrop-blur-sm transition-all duration-300 p-4 ${isReviewOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
         <div className={`relative w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col md:flex-row rounded-[24px] bg-white shadow-2xl transition-all duration-300 dark:bg-navy-800 ${isReviewOpen ? "scale-100 translate-y-0" : "scale-95 translate-y-6"}`}>
-
-          {/* Left: My Schedule Timeline */}
+          {}
           <div className="w-full md:w-[38%] bg-gray-50 p-5 border-r border-gray-100 dark:bg-navy-900 dark:border-navy-700 flex flex-col overflow-y-auto max-h-[85vh]">
             <h3 className="text-[10px] font-black tracking-widest text-brand-500 uppercase flex items-center gap-1.5 mb-1">
                 <MdCalendarMonth size={14} /> My Schedule Timeline
@@ -742,7 +686,7 @@ export default function Approvals() {
             </p>
             {reviewTarget && (
               <>
-                {/* Priority Selection */}
+                {}
                 {reviewTarget.priorities && reviewTarget.priorities.length > 1 && (
                   <div className="rounded-xl bg-white border border-gray-200 p-2 mb-4 dark:bg-navy-800 dark:border-navy-700">
                     <p className="text-[9px] px-1 font-bold text-gray-400 mb-1.5 uppercase">Select Priority to Review</p>
@@ -755,11 +699,10 @@ export default function Approvals() {
                     </div>
                   </div>
                 )}
-                {/* Visual timeline */}
+                {}
                 <div className="relative pl-5 mb-4">
-                  {/* Vertical line */}
+                  {}
                   <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-gray-200 dark:bg-navy-700" />
-
                   {reviewFacultyEvents.length > 0 ? (
                     <div className="space-y-3">
                       {reviewFacultyEvents.map(evt => {
@@ -773,12 +716,10 @@ export default function Approvals() {
                           : isCourse ? "border-indigo-200 bg-white dark:border-indigo-500/20 dark:bg-navy-800" 
                           : evt.isOtherPending ? "border-amber-200 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-900/10"
                           : "border-gray-200 bg-white dark:border-navy-700 dark:bg-navy-800";
-
                         return (
                           <div key={evt.id} className="relative">
-                            {/* Timeline dot */}
+                            {}
                             <div className={`absolute -left-5 top-3 h-2.5 w-2.5 rounded-full ${dotColor} z-10`} />
-
                             <div className={`rounded-xl border p-3 transition-all ${cardBorder}`}>
                               <div className="flex items-center justify-between gap-2 mb-1">
                                 <p className={`text-xs font-bold ${isCurrent ? "text-brand-600 dark:text-brand-400" : "text-navy-700 dark:text-white"}`}>
@@ -812,15 +753,13 @@ export default function Approvals() {
                     </div>
                   )}
                 </div>
-
-                {/* Conflict detection */}
+                {}
                 {(() => {
                   const currentEvt = reviewFacultyEvents.find(e => e.current);
                   const overlaps = currentEvt ? reviewFacultyEvents.filter(e => !e.current && e.startRaw && currentEvt.startRaw && (
                     (parseTimeValue(e.startRaw) < parseTimeValue(currentEvt.endRaw)) && 
                     (parseTimeValue(e.endRaw) > parseTimeValue(currentEvt.startRaw))
                   )) : [];
-                  
                   if (overlaps.length > 0) {
                     return (
                       <div className="rounded-xl bg-red-50 border border-red-200 p-3 mb-4 dark:bg-red-500/10 dark:border-red-500/20">
@@ -835,13 +774,11 @@ export default function Approvals() {
                   }
                   return null;
                 })()}
-
-                {/* Requester, Event, and Purpose information removed as per request */}
+                {}
               </>
             )}
           </div>
-
-          {/* Right: decision panel */}
+          {}
           <div className="w-full md:flex-1 flex flex-col">
             <div className="flex justify-between items-start p-6 border-b border-gray-100 dark:border-navy-700">
               <div>
@@ -859,9 +796,8 @@ export default function Approvals() {
                 <MdClose size={22} />
               </button>
             </div>
-
             <div className="p-7 flex-1 overflow-y-auto">
-              {/* Decision tiles */}
+              {}
               {reviewTarget?.tracker?.faculty === "pending" ? (
                 <>
                   <p className="text-[10px] font-black uppercase tracking-widest text-brand-500 mb-4">Your Decision</p>
@@ -880,7 +816,6 @@ export default function Approvals() {
                             const minDuration = requestedEnd - requestedStart;
                             generateProposals(activeReviewPriority.date, reviewTarget.id, activeReviewPriority.venueId, minDuration).then(opts => {
                               setProposedOptions(opts);
-                              // Auto-select first date when generated
                               setSelectedProposalIndices([0]);
                             });
                             setActiveDateIndex(0);
@@ -891,7 +826,6 @@ export default function Approvals() {
                       </label>
                     ))}
                   </div>
-
                   {decision === "modify" && (
                     <div className="mb-4 space-y-3 max-h-96 overflow-y-auto pr-2">
                       <p className="text-[10px] font-bold uppercase text-gray-500 mb-3 flex items-center gap-1.5">
@@ -965,7 +899,6 @@ export default function Approvals() {
                       })}
                     </div>
                   )}
-
                   <div className="mb-4">
                     <label className="text-[10px] font-bold uppercase text-gray-500 mb-2 block">
                       {decision === "modify" ? "Explanation for Student (Required)" : "Remarks (Optional)"}
@@ -975,7 +908,6 @@ export default function Approvals() {
                       className="w-full p-4 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 dark:bg-navy-900 dark:border-navy-700 dark:text-white text-sm resize-none"
                     />
                   </div>
-
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={remarksScope.includes("Student")} onChange={e => setRemarksScope(e.target.checked ? [...remarksScope, "Student"] : remarksScope.filter(s => s !== "Student"))} className="w-4 h-4 rounded text-brand-500 focus:ring-brand-500 border-gray-300 dark:bg-navy-900 dark:border-navy-600" />
@@ -997,7 +929,6 @@ export default function Approvals() {
                 </div>
               )}
             </div>
-
             <div className="p-5 border-t border-gray-100 bg-gray-50/50 dark:bg-navy-900/30 dark:border-navy-700 flex items-center justify-between">
               <button onClick={() => setIsReviewOpen(false)} className="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Close</button>
               {reviewTarget?.tracker?.faculty === "pending" && (
@@ -1010,23 +941,16 @@ export default function Approvals() {
           </div>
         </div>
       </div>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          FAB
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {}
       <button onClick={() => setIsNewModalOpen(true)}
         className="group fixed bottom-8 right-8 z-40 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-brand-500 to-indigo-600 text-white shadow-[0_0_20px_rgba(67,24,255,0.35)] transition-all duration-300 hover:w-52 hover:rounded-full">
         <span className="absolute right-14 whitespace-nowrap text-sm font-bold opacity-0 transition-opacity duration-300 group-hover:opacity-100">Request a Booking</span>
         <MdAdd size={26} className="absolute right-4 transition-transform group-hover:rotate-90" />
       </button>
-
-      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          NEW REQUEST MODAL
-      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {}
       <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-navy-900/70 backdrop-blur-sm transition-all duration-300 p-4 ${isNewModalOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
         <div className={`relative w-full max-w-4xl flex flex-col md:flex-row overflow-hidden rounded-[24px] bg-white shadow-2xl transition-all duration-300 dark:bg-navy-800 ${isNewModalOpen ? "scale-100 translate-y-0" : "scale-95 translate-y-6"}`}>
-
-          {/* Left: Form */}
+          {}
           <div className="w-full md:w-[55%] p-7 overflow-y-auto max-h-[85vh]">
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -1037,7 +961,6 @@ export default function Approvals() {
                 <MdClose size={18} />
               </button>
             </div>
-
             <div className="space-y-5">
               <div>
                 <label className="text-[10px] font-bold uppercase text-gray-400 mb-1.5 block">Club / Organizing Body</label>
@@ -1051,7 +974,6 @@ export default function Approvals() {
                     className="mt-2 w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500 dark:bg-navy-900 dark:border-navy-700 dark:text-white outline-none text-sm" />
                 )}
               </div>
-
               <div>
                 <label className="text-[10px] font-bold uppercase text-gray-400 mb-1.5 block">Type of Activity</label>
                 <select value={newReq.activity} onChange={e => setNewReq({ ...newReq, activity: e.target.value, activityOther: "" })}
@@ -1064,7 +986,6 @@ export default function Approvals() {
                     className="mt-2 w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500 dark:bg-navy-900 dark:border-navy-700 dark:text-white outline-none text-sm" />
                 )}
               </div>
-
               <div className="grid grid-cols-3 gap-3">
                 <div><label className="text-[10px] font-bold uppercase text-gray-400 mb-1.5 block">Date</label>
                   <input type="date" value={newReq.date} onChange={e => setNewReq({ ...newReq, date: e.target.value })}
@@ -1076,27 +997,23 @@ export default function Approvals() {
                   <input type="time" value={newReq.endTime} onChange={e => setNewReq({ ...newReq, endTime: e.target.value })}
                     className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500 dark:bg-navy-900 dark:border-navy-700 dark:text-white outline-none text-sm" /></div>
               </div>
-
               <div>
                 <label className="text-[10px] font-bold uppercase text-gray-400 mb-1.5 block">Purpose / Description</label>
                 <textarea rows={3} value={newReq.purpose} onChange={e => setNewReq({ ...newReq, purpose: e.target.value })} placeholder="Briefly describe the purpose of the event…"
                   className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500 dark:bg-navy-900 dark:border-navy-700 dark:text-white outline-none text-sm resize-none" />
               </div>
-
               <div>
                 <label className="text-[10px] font-bold uppercase text-gray-400 mb-1.5 block">Notify Student (Email)</label>
                 <input type="email" value={newReq.email} onChange={e => setNewReq({ ...newReq, email: e.target.value })} placeholder="student@iitrpr.ac.in"
                   className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500 dark:bg-navy-900 dark:border-navy-700 dark:text-white outline-none text-sm" />
               </div>
-
               <button onClick={() => { alert("Request Submitted!"); setIsNewModalOpen(false); }}
                 className="w-full py-3.5 rounded-xl bg-brand-500 text-white font-bold flex justify-center items-center gap-2 hover:bg-brand-600 shadow-lg shadow-brand-500/25 transition-all">
                 Submit Request <MdSend size={16} />
               </button>
             </div>
           </div>
-
-          {/* Right: Live preview */}
+          {}
           <div className="w-full md:flex-1 bg-gray-50 p-7 border-l border-gray-100 dark:bg-navy-900 dark:border-navy-700 flex flex-col justify-center items-center">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-5">Live Ticket Preview</p>
             <div className="w-full max-w-xs rounded-2xl overflow-hidden shadow-xl border border-gray-200 dark:border-navy-600">
@@ -1121,10 +1038,8 @@ export default function Approvals() {
               <p className="text-xs text-gray-400 mt-4 text-center flex items-center gap-1"><MdInfoOutline size={13} /> Fill in Club & Activity to see your preview</p>
             )}
           </div>
-
         </div>
       </div>
-
     </div>
   );
 }

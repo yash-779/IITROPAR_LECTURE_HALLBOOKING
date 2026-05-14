@@ -1,5 +1,4 @@
 import Switch from "components/switch";
-
 const SwitchField = (props) => {
   const { id, label, desc, mt, mb } = props;
   return (
@@ -19,5 +18,4 @@ const SwitchField = (props) => {
     </div>
   );
 };
-
 export default SwitchField;

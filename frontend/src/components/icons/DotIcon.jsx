@@ -14,5 +14,4 @@ const DotIcon = () => {
     </svg>
   );
 };
-
 export default DotIcon;

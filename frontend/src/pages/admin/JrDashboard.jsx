@@ -1,17 +1,65 @@
-import React from "react";
-import { kpis, tightnessData } from "../../variables/mockData";
+import React, { useState, useEffect } from "react";
+import { fetchAllBookings } from "../../services/api";
+import { ROOM_CAPACITIES } from "../../variables/constants";
 import { 
   MdOutlineAssignment, MdPendingActions, MdCheckCircle, MdCancel, 
   MdWarning, MdTrendingUp, MdTimeline, MdArrowForward
 } from "react-icons/md";
-
 export default function JRDashboard() {
-  
-
+  const [bookings, setBookings] = useState([]);
+  const [kpis, setKpis] = useState([
+    { title: "Pending Approvals", value: 0, trend: "+0%", icon: <MdPendingActions size={24} />, bg: "bg-orange-50", color: "text-orange-500", glow: "shadow-[0_0_20px_rgba(249,115,22,0.15)]" },
+    { title: "Processed Today", value: 0, trend: "+0%", icon: <MdCheckCircle size={24} />, bg: "bg-green-50", color: "text-green-500" },
+    { title: "Clubs Active", value: 0, trend: "+0%", icon: <MdOutlineAssignment size={24} />, bg: "bg-blue-50", color: "text-blue-500" },
+    { title: "Rejected", value: 0, trend: "-0%", icon: <MdCancel size={24} />, bg: "bg-red-50", color: "text-red-500" },
+  ]);
+  const [tightnessData, setTightnessData] = useState([]);
+  const [activeRequestsCount, setActiveRequestsCount] = useState({ submitted: 0, faculty: 0, ar: 0, jr: 0, final: 0 });
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const all = await fetchAllBookings();
+        setBookings(all);
+        const pending = all.filter(b => b.tracker?.jrAssistant === "pending" && b.tracker?.faculty === "approved").length;
+        const processedToday = all.filter(b => b.tracker?.jrAssistant !== "pending").length;
+        const clubsCount = new Set(all.filter(b => b.clubName).map(b => b.clubName)).size;
+        const rejected = all.filter(b => b.status === "Rejected").length;
+        setKpis([
+          { title: "Pending Approvals", value: pending, trend: "+5%", icon: <MdPendingActions size={24} />, bg: "bg-orange-50", color: "text-orange-500", glow: "shadow-[0_0_20px_rgba(249,115,22,0.15)]" },
+          { title: "Processed Overall", value: processedToday, trend: "+2%", icon: <MdCheckCircle size={24} />, bg: "bg-green-50", color: "text-green-500" },
+          { title: "Clubs", value: clubsCount, trend: "+1%", icon: <MdOutlineAssignment size={24} />, bg: "bg-blue-50", color: "text-blue-500" },
+          { title: "Rejected", value: rejected, trend: "-1%", icon: <MdCancel size={24} />, bg: "bg-red-50", color: "text-red-500" },
+        ]);
+        setActiveRequestsCount({
+            submitted: all.length,
+            faculty: all.filter(b => b.tracker?.faculty === "pending").length,
+            jr: pending,
+            ar: all.filter(b => b.tracker?.ar === "pending" && b.tracker?.superintendent === "approved").length,
+            final: all.filter(b => b.status === "Approved").length
+        });
+        const roomCounts = {};
+        all.forEach(b => {
+             if (b.allocatedSlot && b.allocatedSlot.venueId) {
+                roomCounts[b.allocatedSlot.venueName] = (roomCounts[b.allocatedSlot.venueName] || 0) + 1;
+             }
+        });
+        const tightness = Object.entries(roomCounts)
+             .map(([room, count]) => ({ room, load: Math.min(100, count * 20), color: count > 3 ? "bg-red-500" : count > 1 ? "bg-orange-500" : "bg-green-500" }))
+             .sort((a,b) => b.load - a.load)
+             .slice(0, 4);
+        if (tightness.length === 0) {
+            tightness.push({ room: "Campus", load: 5, color: "bg-green-500" });
+        }
+        setTightnessData(tightness);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    load();
+  }, []);
   return (
     <div className="mt-5 w-full min-h-[85vh] rounded-[20px] dark:bg-gradient-to-br dark:from-navy-900 dark:to-navy-800 p-2 lg:p-4">
-      
-      {/* SLIM STATUS ROW */}
+      {}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 px-1">
         <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-500">
           System Overview • {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -21,8 +69,7 @@ export default function JRDashboard() {
           System Efficiency: 82%
         </div>
       </div>
-
-      {/* 1. KPI CARDS ROW */}
+      {}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {kpis.map((kpi, index) => (
           <div key={index} className={`relative flex flex-col rounded-[20px] bg-white/80 backdrop-blur-md p-6 shadow-sm border border-gray-100 dark:bg-navy-800/80 dark:border-navy-700 transition-all hover:-translate-y-1 hover:shadow-lg ${kpi.glow || ''}`}>
@@ -41,9 +88,8 @@ export default function JRDashboard() {
           </div>
         ))}
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* 2. ALERT PANEL (Actionable items) */}
+        {}
         <div className="rounded-[20px] bg-white/80 backdrop-blur-md p-6 shadow-sm border border-gray-100 dark:bg-navy-800/80 dark:border-navy-700">
           <h3 className="text-sm font-black uppercase tracking-widest text-red-500 mb-4 flex items-center gap-2">
             <MdWarning size={18} /> High Priority Alerts
@@ -63,8 +109,7 @@ export default function JRDashboard() {
             </div>
           </div>
         </div>
-
-        {/* 3. SCHEDULE TIGHTNESS (Your Killer Feature) */}
+        {}
         <div className="col-span-1 lg:col-span-2 rounded-[20px] bg-white/80 backdrop-blur-md p-6 shadow-sm border border-gray-100 dark:bg-navy-800/80 dark:border-navy-700">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-sm font-black uppercase tracking-widest text-navy-700 dark:text-white flex items-center gap-2">
@@ -74,7 +119,6 @@ export default function JRDashboard() {
               Overall: 65% Occupied
             </span>
           </div>
-
           <div className="space-y-6">
             {tightnessData.map((room, i) => (
               <div key={i}>
@@ -82,9 +126,9 @@ export default function JRDashboard() {
                   <span className="text-navy-700 dark:text-white uppercase tracking-wider">{room.room}</span>
                   <span className={`${room.load >= 90 ? 'text-red-500' : 'text-gray-500'}`}>{room.load}%</span>
                 </div>
-                {/* The Progress Bar Base */}
+                {}
                 <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden dark:bg-navy-900">
-                  {/* The Fill */}
+                  {}
                   <div 
                     className={`${room.color} h-3 rounded-full transition-all duration-1000 ease-out`} 
                     style={{ width: `${room.load}%` }}
@@ -93,8 +137,7 @@ export default function JRDashboard() {
               </div>
             ))}
           </div>
-          
-          {/* Smart Insight Suggestion */}
+          {}
           <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-brand-500/10 to-purple-500/10 border border-brand-500/20 flex items-center gap-3">
              <div className="h-8 w-8 rounded-full bg-brand-500 text-white flex items-center justify-center shadow-lg shadow-brand-500/40">💡</div>
              <div>
@@ -104,20 +147,17 @@ export default function JRDashboard() {
           </div>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* 4. REQUEST FLOW PIPELINE */}
+        {}
         <div className="col-span-1 lg:col-span-2 rounded-[20px] bg-white/80 backdrop-blur-md p-6 shadow-sm border border-gray-100 dark:bg-navy-800/80 dark:border-navy-700">
           <h3 className="text-sm font-black uppercase tracking-widest text-navy-700 dark:text-white mb-8">Request Pipeline Flow</h3>
-          
           <div className="flex items-center justify-between px-2 overflow-x-auto pb-4">
             {[
-              { step: "Submitted", count: 24, active: true },
-              { step: "Faculty", count: 20, active: true },
-              { step: "AR", count: 18, active: true },
-              { step: "JR Assist", count: 12, active: true, glow: true },
-              { step: "Final", count: 10, active: false }
+              { step: "Submitted", count: activeRequestsCount.submitted, active: true },
+              { step: "Faculty", count: activeRequestsCount.faculty, active: true },
+              { step: "JR Assist", count: activeRequestsCount.jr, active: true, glow: true },
+              { step: "AR", count: activeRequestsCount.ar, active: true },
+              { step: "Final", count: activeRequestsCount.final, active: false }
             ].map((node, i) => (
               <React.Fragment key={i}>
                 <div className="flex flex-col items-center gap-3 min-w-[80px]">
@@ -131,12 +171,10 @@ export default function JRDashboard() {
             ))}
           </div>
         </div>
-
-        {/* 5. RECENT ACTIVITY FEED */}
+        {}
         <div className="rounded-[20px] bg-white/80 backdrop-blur-md p-6 shadow-sm border border-gray-100 dark:bg-navy-800/80 dark:border-navy-700">
           <h3 className="text-sm font-black uppercase tracking-widest text-navy-700 dark:text-white mb-6">Live Feed</h3>
           <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 dark:before:via-navy-700 before:to-transparent">
-            
             <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
               <div className="flex items-center justify-center w-5 h-5 rounded-full border-2 border-white bg-green-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 dark:border-navy-800"></div>
               <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.25rem)] p-3 rounded-xl bg-gray-50 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
@@ -144,7 +182,6 @@ export default function JRDashboard() {
                 <p className="text-[10px] font-medium text-gray-500 mt-1">Room M3 • Just now</p>
               </div>
             </div>
-
             <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
               <div className="flex items-center justify-center w-5 h-5 rounded-full border-2 border-white bg-red-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 dark:border-navy-800"></div>
               <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.25rem)] p-3 rounded-xl bg-gray-50 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
@@ -152,7 +189,6 @@ export default function JRDashboard() {
                 <p className="text-[10px] font-medium text-gray-500 mt-1">Room M2 • 10 min ago</p>
               </div>
             </div>
-
             <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
               <div className="flex items-center justify-center w-5 h-5 rounded-full border-2 border-white bg-brand-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 dark:border-navy-800 animate-pulse"></div>
               <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.25rem)] p-3 rounded-xl bg-gray-50 border border-gray-100 dark:bg-navy-900 dark:border-navy-700">
@@ -160,10 +196,8 @@ export default function JRDashboard() {
                 <p className="text-[10px] font-medium text-gray-500 mt-1">Auditorium • 1 hr ago</p>
               </div>
             </div>
-
           </div>
         </div>
-
       </div>
     </div>
   );
