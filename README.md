@@ -38,12 +38,12 @@ Here are some previews of the HallSync interface:
 
 *(Note: Replace the descriptions below based on what each screenshot actually shows)*
 
-![Dashboard View](./Screenshot(726).png)
-![Booking Workflow](./Screenshot(733).png)
-![Schedule Calendar](./Screenshot(735).png)
-![Approval Interface](./Screenshot(738).png)
-![E-Ticket & Details](./Screenshot(743).png)
-![Profile & Settings](./Screenshot(744).png)
+![MAIN PAGE](./main_page.png)
+![FACULTY APPROVAL](./faculty_approving.png)
+![STUDENT AND FACULTY Schedule](./student_schedule.png)
+![Approval Interface](./managing_approvals.png)
+![DETAILED VIEW OF EVENTS IN ALL VENUES](./venue_info.png)
+![DETAILED VIEW OF CAMPUS EVENTS ](./campus_schedule.png)
 
 ## 🛠️ Technology Stack
 
