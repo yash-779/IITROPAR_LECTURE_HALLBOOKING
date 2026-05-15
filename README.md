@@ -39,10 +39,10 @@ Here are some previews of the HallSync interface:
 *(Note: Replace the descriptions below based on what each screenshot actually shows)*
 
 ![MAIN PAGE](./main_page.png)
-![FACULTY APPROVAL](./faculty_approving.png)
 ![STUDENT AND FACULTY Schedule](./student_schedule.png)
 ![Approval Interface](./managing_approvals.png)
 ![DETAILED VIEW OF EVENTS IN ALL VENUES](./venue_info.png)
+![FACULTY APPROVAL](./faculty_approving.png)
 ![DETAILED VIEW OF CAMPUS EVENTS ](./campus_schedule.png)
 
 ## 🛠️ Technology Stack
