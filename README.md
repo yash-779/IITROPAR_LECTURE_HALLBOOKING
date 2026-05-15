@@ -1,6 +1,7 @@
 # IIT Ropar HallSync - Lecture Hall Booking Portal
 
 HallSync is a comprehensive, role-based lecture hall and venue booking portal designed specifically for IIT Ropar. It streamlines the complex workflow of reserving campus venues for academic, club, and extra-curricular activities through an automated, multi-tier approval system.
+![MAIN PAGE](./main_page.png)
 
 ## 🌟 Key Features
 
@@ -11,10 +12,12 @@ Dedicated dashboards and custom workflows for five distinct user roles:
 *   **Jr. Assistant**: Handles triage queue, assigns specific venue slots to requests, and resolves scheduling conflicts.
 *   **Superintendent**: Reviews and vets allocated slots before final sign-off.
 *   **Assistant Registrar (AR) / Dean**: Provides the final executive approval, locking the decision and triggering E-ticket generation.
+![STUDENT AND FACULTY Schedule](./student_schedule.png)
 
 ### 2. Multi-Tier Approval Workflow
 *   **State-Machine Tracking**: A visual timeline tracker for every booking, showing real-time progress across Faculty, Jr. Assistant, Superintendent, and AR stages.
 *   **Immutable Decisions**: Once a request reaches final approval, the decision is locked to prevent accidental post-approval modifications.
+![Approval Interface](./managing_approvals.png)
 
 ### 3. Smart Conflict Resolution & Scheduling
 *   **Automated Conflict Checking**: Prevents venue double-booking and alerts students if a requested time overlaps with their own enrolled academic classes.
@@ -24,6 +27,7 @@ Dedicated dashboards and custom workflows for five distinct user roles:
 *   **Campus Schedule**: A unified view of all approved and pending campus-wide events.
 *   **Room Calendar**: A filterable timeline visualization to see exact availability for specific venues (e.g., M1, M2, L1).
 *   **Personal Schedule**: Tailored views integrating both official academic course schedules and approved custom bookings.
+![DETAILED VIEW OF EVENTS IN ALL VENUES](./venue_info.png)
 
 ### 5. Dynamic E-Ticket Generation
 *   Once a booking receives final AR approval, the backend automatically generates a secure, hashed **QR Code E-Ticket**.
@@ -31,6 +35,7 @@ Dedicated dashboards and custom workflows for five distinct user roles:
 
 ### 6. Automated Email Notifications & Magic Links
 *   Email notifications sent to administrators to approve new Faculty and Student registrations via one-click magic links.
+![FACULTY APPROVAL](./faculty_approving.png)
 
 ## 📸 Application Showcase
 
@@ -38,11 +43,6 @@ Here are some previews of the HallSync interface:
 
 *(Note: Replace the descriptions below based on what each screenshot actually shows)*
 
-![MAIN PAGE](./main_page.png)
-![STUDENT AND FACULTY Schedule](./student_schedule.png)
-![Approval Interface](./managing_approvals.png)
-![DETAILED VIEW OF EVENTS IN ALL VENUES](./venue_info.png)
-![FACULTY APPROVAL](./faculty_approving.png)
 ![DETAILED VIEW OF CAMPUS EVENTS ](./campus_schedule.png)
 
 ## 🛠️ Technology Stack
